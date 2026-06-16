@@ -1,8 +1,8 @@
 {
-  "name": "ZANTA-MD-v2",
-  "description": "Javascript WhatsApp bot made by Akash kavindu.",
-  "logo": "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/alive-new.jpg?raw=true",
-  "keywords": ["ZANTA-MD"],
+  "name": "ZEUS-X-MINI",
+  "description": "Javascript WhatsApp bot made by Mr ThinUzz.",
+  "logo": "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg",
+  "keywords": ["ZEUS-X-MINI"],
   "success_url": "/",
 
   "env": {
