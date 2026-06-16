@@ -1,15 +1,15 @@
 const { cmd } = require("../command");
 const axios = require("axios");
 
-const CHANNEL_JID = "120363406265537739@newsletter";
+const CHANNEL_JID = "120363404252774256@newsletter";
 const cooldowns = new Map();
-const PAIR_IMAGE = "https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/zanta-md.png";
+const PAIR_IMAGE = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
 
 cmd({
     pattern: "pair",
     alias: ["code", "login"],
     react: "🔑",
-    desc: "Get ZANTA-MD pair code (Auto-copy format).",
+    desc: "Get ZEUS X pair code (Auto-copy format).",
     category: "main",
     filename: __filename
 }, async (bot, mek, m, { from, q, reply, userSettings }) => {
@@ -36,10 +36,10 @@ cmd({
             const pairCode = response.data.code;
 
             // 1. මුලින්ම ලස්සන විස්තර මැසේජ් එක රූපයත් එක්ක යවනවා
-            let mainMsg = `✨ *𝚉𝙰𝙽𝚃𝙰-𝙼𝙳 𝙿𝙰𝙸𝚁 𝙲𝙾𝙳𝙴* ✨\n\n` +
-                          `👤 *𝙽𝚄𝙼𝙱𝙴𝚁:* ${phoneNumber}\n` +
-                          `🔑 *𝚂𝚃𝙰𝚃𝚄𝚂:* Generated Successfully\n\n` +
-                          `> *© 𝚉𝙰𝙽𝚃𝙰-𝙼𝙳 𝙾𝙵𝙵𝙸𝙲𝙸𝙰𝙻*`;
+            let mainMsg = `✨ *ZEUS X MINI PAIR CODE* ✨\n\n` +
+                          `👤 *NUMBER:* ${phoneNumber}\n` +
+                          `🔑 *STATUS:* Generated Successfully\n\n` +
+                          `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰`;
 
             const contextInfo = {
                 forwardingScore: 999,
@@ -47,7 +47,7 @@ cmd({
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: CHANNEL_JID,
                     serverMessageId: 100,
-                    newsletterName: "𝒁𝑨𝑵𝑻𝑨-𝑴𝑫 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳 </>"
+                    newsletterName: "_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰"
                 }
             };
 
