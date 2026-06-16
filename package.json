@@ -1,13 +1,13 @@
 {
-  "name": "ZANTA-MD",
+  "name": "ZEUS-X-MINI",
   "version": "1.0.0",
   "description": "A Powerfull Whatsapp Bot.",
   "main": "index.js",
   "scripts": {
     "start": "node --max-old-space-size=750 --expose-gc index.js",
-    "pm2": "pm2-runtime start index.js --name ZANTA-MD --node-args='--expose-gc --max-old-space-size=750'",
-    "stop": "pm2 stop ZANTA-MD",
-    "restart": "pm2 restart ZANTA-MD"
+    "pm2": "pm2-runtime start index.js --name ZEUS-X-MINI --node-args='--expose-gc --max-old-space-size=750'",
+    "stop": "pm2 stop ZEUS-X-MINI",
+    "restart": "pm2 restart ZEUS-X-MINI"
   },
   "dependencies": {
     "@faouzkk/tiktok-dl": "^1.0.1",
