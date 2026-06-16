@@ -3,8 +3,8 @@ const os = require('os');
 const config = require("../config");
 const axios = require('axios'); 
 
-const MENU_IMAGE_URL = "https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/zanta-md.png";
-const CHANNEL_JID = "120363406265537739@newsletter"; 
+const MENU_IMAGE_URL = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
+const CHANNEL_JID = "120363404252774256@newsletter"; 
 const lastMenuMessage = new Map();
 
 // --- 🖼️ IMAGE PRE-LOAD LOGIC ---
@@ -34,8 +34,8 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
     try {
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const finalPrefix = settings.prefix || config.DEFAULT_PREFIX || '.'; 
-        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZANTA-MD"; 
-        const ownerName = settings.ownerName || config.DEFAULT_OWNER_NAME || 'Akash Kavindu';
+        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI"; 
+        const ownerName = settings.ownerName || config.DEFAULT_OWNER_NAME || 'Mr ThinUzz';
         const mode = (settings.workType || "Public").toUpperCase();
         const isButtonsOn = settings.buttons === 'true';
 
@@ -81,7 +81,7 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
             forwardedNewsletterMessageInfo: {
                 newsletterJid: CHANNEL_JID,
                 serverMessageId: 100,
-                newsletterName: "𝒁𝑨𝑵𝑻𝑨-𝑴𝑫 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳 </>"
+                newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰"
             }
         };
 
@@ -115,7 +115,7 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
             return await zanta.sendMessage(from, {
                 image: imageToDisplay,
                 caption: headerText + "ꜱᴇʟᴇᴄᴛ 👇",
-                footer: `© ZANTA-MD •`,
+                footer: `© ZEUS-X-MINI •`,
                 buttons: [
                     { buttonId: "cat_main", buttonText: { displayText: "🏠 MAIN" }, type: 1 },
                     { buttonId: "cat_download", buttonText: { displayText: "📥 DOWNLOAD" }, type: 1 },
