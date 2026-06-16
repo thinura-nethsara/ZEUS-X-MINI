@@ -1,0 +1,43 @@
+{
+  "name": "ZANTA-MD",
+  "version": "1.0.0",
+  "description": "A Powerfull Whatsapp Bot.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --max-old-space-size=750 --expose-gc index.js",
+    "pm2": "pm2-runtime start index.js --name ZANTA-MD --node-args='--expose-gc --max-old-space-size=750'",
+    "stop": "pm2 stop ZANTA-MD",
+    "restart": "pm2 restart ZANTA-MD"
+  },
+  "dependencies": {
+    "@faouzkk/tiktok-dl": "^1.0.1",
+    "@vitalets/google-translate-api": "^9.2.1",
+    "@xaviabot/fb-downloader": "^1.0.14",
+    "@whiskeysockets/baileys": "npm:gifted-baileys@2.0.4",
+    "@google/generative-ai": "^0.24.1",
+    "abir-photo360-apis": "^1.0.2",
+    "api-dylux": "^1.8.5",
+    "audio-decode": "^2.2.3",
+    "axios": "^1.13.2",
+    "browser-id3-writer": "^6.3.1",
+    "cheerio": "^1.1.2",
+    "dotenv": "^17.2.3",
+    "express": "^4.19.2",
+    "ffmpeg-static": "^5.3.0",
+    "figlet": "^1.9.4",
+    "file_size_url": "^1.0.6",
+    "fluent-ffmpeg": "^2.1.2",
+    "fs-extra": "^11.2.0",
+    "g-i-s": "^2.1.7",
+    "jimp": "^1.6.0",
+    "link-preview-js": "^3.0.0",
+    "mongoose": "^7.6.14",
+    "node-fetch": "^3.3.2",
+    "node-id3": "^0.2.9",
+    "node-cache": "^5.1.2",
+    "pino": "^8.21.0",
+    "pm2": "^6.0.14",
+    "tmp": "^0.2.5",
+    "yt-search": "^2.13.1"
+  }
+}
