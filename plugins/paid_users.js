@@ -2,7 +2,7 @@ const { cmd } = require('../command');
 const { updateSetting } = require('../plugins/bot_db');
 
 // 🛡️ අවසර ලත් අංක (Owner only)
-const allowedNumbers = ["94771810698", "94743404814", "94766247995", "192063001874499", "270819766866076"];
+const allowedNumbers = ["947745714188", "94743404814", "94766247995", "192063001874499", "270819766866076"];
 
 cmd({
     pattern: "pay",
@@ -15,7 +15,7 @@ cmd({
 }, async (conn, mek, m, { q, reply, sender }) => {
 
     const senderNumber = sender.split("@")[0].replace(/[^\d]/g, '');
-    if (!allowedNumbers.includes(senderNumber)) return reply("🚫මෙම පහසුකම භාවිතා කිරීමට ඔබට අවසර නැත\n\n> Contact owner\nhttp://wa.me/+94766247995?text=*Zanta+Channel+React*");
+    if (!allowedNumbers.includes(senderNumber)) return reply("🚫මෙම පහසුකම භාවිතා කිරීමට ඔබට අවසර නැත\n\n> Contact owner\nhttp://wa.me/+94774571418?text=*ZEUS+Channel+React*");
 
     if (!q.includes(",")) return reply("💡 Usage: .user 9477xxxxxxx, paid\n(Status can be paid or unpaid)");
 
