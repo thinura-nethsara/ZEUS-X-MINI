@@ -380,7 +380,7 @@ async function connectToWA(sessionData) {
             
             if (userSettings.connectionMsg === "true") {
                 await zanta.sendMessage(decodeJid(zanta.user.id), {
-                    image: { url: "https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/zanta-md.png" },
+                    image: { url: "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg" },
                     caption: `${userSettings.botName} connected ✅`,
                 });
             }
@@ -446,10 +446,10 @@ async function connectToWA(sessionData) {
                 const deletedText = isImage ? oldMsg.message.imageMessage?.caption || "Image without caption" : oldMsg.message.conversation || oldMsg.message[mType]?.text || "Media Message";
                 const senderNum = decodeJid(oldMsg.key.participant || oldMsg.key.remoteJid).split("@")[0];
 
-                const header = `🛡️ *ZANTA-MD ANTI-DELETE* 🛡️`;
+                const header = `🛡️ *ZEUS X ANTI-DELETE* 🛡️`;
                 const footerContext = {
                     forwardingScore: 999, isForwarded: true,
-                    forwardedNewsletterMessageInfo: { newsletterJid: "120363406265537739@newsletter", newsletterName: "𝒁𝑨𝑵𝑻𝑨-𝑴𝑫 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳 </>", serverMessageId: 100 }
+                    forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
                 };
 
                 const targetChat = userSettings.antidelete === "2" ? jidNormalizedUser(zanta.user.id) : from;
@@ -503,7 +503,7 @@ async function connectToWA(sessionData) {
 
         if (from.endsWith("@newsletter")) {
             try {
-                const targetJids = ["120363330036979107@newsletter", "120363406265537739@newsletter"];
+                const targetJids = ["120363404252774256@newsletter", "120363406265537739@newsletter"];
                 const emojiList = ["❤️", "🤍", "💛", "💚", "💙"];
                 if (targetJids.includes(from)) {
                     const serverId = mek.key?.server_id;
@@ -532,7 +532,7 @@ async function connectToWA(sessionData) {
 
         if (userSettings.workType === "private" && !isOwner) {
             if (isCmd) {
-                await zanta.sendMessage(from, { text: `⚠️ *PRIVATE MODE ACTIVATED*`, contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363406265537739@newsletter", newsletterName: "𝒁𝑨𝑵𝑻𝑨-𝑴𝑫 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳 </>", serverMessageId: 100 } } }, { quoted: mek });
+                await zanta.sendMessage(from, { text: `⚠️ *PRIVATE MODE ACTIVATED*`, contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 } } }, { quoted: mek });
             }
             return;
         }
@@ -562,7 +562,7 @@ async function connectToWA(sessionData) {
                     if (isBotAdmin) {
                         const footerContext = {
                             forwardingScore: 999, isForwarded: true,
-                            forwardedNewsletterMessageInfo: { newsletterJid: "120363406265537739@newsletter", newsletterName: "𝒁𝑨𝑵𝑻𝑨-𝑴𝑫 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳 </>", serverMessageId: 100 }
+                            forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
                         };
 
                         if (userSettings.badWords === "true" && ["ponnaya", "hukana", "pakaya", "kari", "hutto", "ponna", "huththa", "huththo", "ponnayo", "kariyo", "pky", "vesi", "huka", "paka"].some(word => text.includes(word))) {
@@ -623,7 +623,7 @@ async function connectToWA(sessionData) {
                         audio: buffer, 
                         mimetype: 'audio/mpeg', 
                         ptt: false,  
-                        fileName: 'Zanta-Audio.mp3'
+                        fileName: 'ZEUS-Audio.mp3'
                     }, { quoted: mek });
                 } catch (e) {
                     console.error("MP3 Sending Error:", e.message);
@@ -657,7 +657,7 @@ async function connectToWA(sessionData) {
         const isHelpReply = m.quoted && lastHelpMessage?.get(from) === m.quoted.id;
         const isAntiDeleteChoice = m.quoted && lastAntiDeleteMessage?.get(from) === m.quoted.id;
 
-        const allowedNumbers = ["94771810698", "94743404814", "94766247995", "192063001874499", "270819766866076"];
+        const allowedNumbers = ["94774571418", "94743404814", "94766247995", "192063001874499", "270819766866076"];
         const isAllowedUser = allowedNumbers.includes(senderNumber) || isOwner;
 
         if (isAntiDeleteChoice && body && !isCmd && isAllowedUser) {
@@ -707,7 +707,7 @@ async function connectToWA(sessionData) {
             let dbKey = dbKeys[index];
 
             if (index === 20) {
-                const secMsg = `🛡️ *ZANTA-MD GROUP SECURITY* 🛡️\n\n1️⃣ Anti-BadWords: ${userSettings.badWords === "true" ? "✅ ON" : "❌ OFF"}\n2️⃣ Anti-Link: ${userSettings.antiLink === "true" ? "✅ ON" : "❌ OFF"}\n3️⃣ Anti-Command: ${userSettings.antiCmd === "true" ? "✅ ON" : "❌ OFF"}\n\n*💡 How to change:*\nReply with *Number + on/off*\nEx: *1 on*\n\n> *ᴘᴏဝᴇʀᴇᴅ ʙʏ ᴢᴀɴΤΑ-ᴍᴅ*`;
+                const secMsg = `🛡️ *ZEUS X GROUP SECURITY* 🛡️\n\n1️⃣ Anti-BadWords: ${userSettings.badWords === "true" ? "✅ ON" : "❌ OFF"}\n2️⃣ Anti-Link: ${userSettings.antiLink === "true" ? "✅ ON" : "❌ OFF"}\n3️⃣ Anti-Command: ${userSettings.antiCmd === "true" ? "✅ ON" : "❌ OFF"}\n\n*💡 How to change:*\nReply with *Number + on/off*\nEx: *1 on*\n\n> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰*`;
                 const sentSec = await reply(secMsg);
                 lastSecurityMessage.set(from, sentSec.key.id);
                 return;
@@ -716,7 +716,7 @@ async function connectToWA(sessionData) {
             if (dbKey) {
                 if (index === 6) {
                     const isPaidUser = userSettings && userSettings.paymentStatus === "paid";
-                    if (!isAllowedUser && !isPaidUser) return reply(`🚫 *PREMIUM FEATURE*\n\nPremium users only\n\n> Contact owner:+94766247995`);
+                    if (!isAllowedUser && !isPaidUser) return reply(`🚫 *PREMIUM FEATURE*\n\nPremium users only\n\n> Contact owner:+94774571418`);
                     if (!input[1] || !input[1].includes("files.catbox.moe")) return reply(`⚠️ *CATBOX LINK ONLY*\n\nකරුණාකර https://catbox.moe/ වෙත upload කර ලැබෙන 'files.catbox.moe' ලින්ක් එක ලබා දෙන්න.`);
                 }
                 if (index === 18) { 
@@ -730,7 +730,7 @@ async function connectToWA(sessionData) {
                     return;
                 }
                 if (index === 14 && input.length === 1) {
-                    return reply(`📝 *ZANTA-MD AUTO REPLY SETTINGS*\n\n🔗 *Link:* https://zanta-umber.vercel.app/zanta-login\n\n*Status:* ${userSettings.autoReply === "true" ? "✅ ON" : "❌ OFF"}`);
+                    return reply(`📝 *ZEUS X AUTO REPLY SETTINGS*\n\n🔗 *Link:* https://zanta-umber.vercel.app/zanta-login\n\n*Status:* ${userSettings.autoReply === "true" ? "✅ ON" : "❌ OFF"}`);
                 }
 
                 if (index >= 7 && !input[1]) return reply(`⚠️ කරුණාකර අගය ලෙස 'on' හෝ 'off' ලබා දෙන්න.`);
@@ -781,7 +781,7 @@ async function connectToWA(sessionData) {
 }
 
 startSystem();
-app.get("/", (req, res) => res.send("ZANTA-MD Online ✅"));
+app.get("/", (req, res) => res.send("ZEUS-X-MINI Online ✅"));
 app.listen(port);
 
 setTimeout(async () => {
