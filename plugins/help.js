@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const lastHelpMessage = new Map();
 
-const HELP_IMG_URL = "https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/zanta-md.png";
+const HELP_IMG_URL = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
 
 // --- 🖼️ IMAGE PRE-LOAD LOGIC ---
 let cachedHelpImage = null;
@@ -32,7 +32,7 @@ cmd({
 }, async (zanta, mek, m, { from, reply, args, pushname, userSettings }) => {
     try {
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
-        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZANTA-MD";
+        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
         // --- 📂 1. අංකයක් Reply කළ විට ක්‍රියාත්මක වන කොටස ---
         const selection = args[0]; 
@@ -40,18 +40,18 @@ cmd({
         if (selection === "1") {
             let devMsg = `*👨‍💻 Bot Developer Details*
 
-👤 *නම:* Akash Kavindu
-🛠️ *ව්‍යාපෘතිය:* ZANTA-MD (WhatsApp Bot)
+👤 *නම:* ZEUS X INC
+🛠️ *ව්‍යාපෘතිය:* ZEUS X MINI (WhatsApp Bot)
 🌍 *රට:* ශ්‍රී ලංකා
 🔗 *GitHub:* 🤐
-🔗 *WhatsApp:* http://wa.me/+94743404814?text=*Hey__ZANTA
+🔗 *WhatsApp:* http://wa.me/+94774571418?text=*HII__SUDUU
 
 > *Created with ❤️ by Akash*`;
             return reply(devMsg);
         }
 
         if (selection === "2") {
-            let featMsg = `*🚀 ZANTA-MD All Features*
+            let featMsg = `*🚀 ZEUS X MINI All Features*
 
 🖼️ *Media:* Getdp, Save status, Unlock view once image...
 🎶 *Download:* Song, YTmp4, FB, Tiktok, Apk
@@ -69,7 +69,7 @@ _සවිස්තරාත්මක ලැයිස්තුවට .menu ට�
 
 ඔබට කිසියම් ගැටළුවක් ඇත්නම් පහත ලින්ක් හරහා අපව සම්බන්ධ කරගන්න:
 
-🔗 *Official WhatsApp:* http://wa.me/+94743404814?text=*Hey__ZANTA
+🔗 *Official WhatsApp:* http://wa.me/+94774571418?text=*HII__SUDUU
 
 _ස්තුතියි!_`;
             return reply(contactMsg);
