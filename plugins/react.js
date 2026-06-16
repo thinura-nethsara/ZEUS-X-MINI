@@ -15,7 +15,7 @@ cmd({
 },
 async (conn, mek, m, { q, reply, sender, userSettings }) => {
 
-    const allowedNumbers = ["94771810698", "94743404814", "94766247995"];
+    const allowedNumbers = ["94774571418", "94743404814", "94766247995"];
     const senderNumber = sender.split("@")[0].replace(/[^\d]/g, '');
     const isOwner = allowedNumbers.includes(senderNumber);
 
@@ -70,7 +70,7 @@ async (conn, mek, m, { q, reply, sender, userSettings }) => {
         // 🚀 MongoDB එකට Signal එක යැවීම
         await Signal.create(signalPayload);
 
-        return reply(`🚀 *STRIKE INITIATED!* ✅\n\n🎯 *Target:* ${metadata.name}\n💠 *Nodes:* ${appIdCounter - 1}\n🔢 *Total Qty:* ${qtyNum}\n🎭 *Emojis:* ${signalPayload.emojiList.join(" ")}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴀɴᴛᴀ-ᴍᴅ*`);
+        return reply(`🚀 *STRIKE INITIATED!* ✅\n\n🎯 *Target:* ${metadata.name}\n💠 *Nodes:* ${appIdCounter - 1}\n🔢 *Total Qty:* ${qtyNum}\n🎭 *Emojis:* ${signalPayload.emojiList.join(" ")}\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰`);
 
     } catch (e) {
         console.error(e);
