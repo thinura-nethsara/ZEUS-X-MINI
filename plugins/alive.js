@@ -3,7 +3,7 @@ const config = require('../config');
 const aliveMsg = require('./aliveMsg');
 const axios = require('axios'); 
 
-const CHANNEL_JID = "120363406265537739@newsletter"; 
+const CHANNEL_JID = "120363404252774256@newsletter"; 
 
 // --- 🖼️ IMAGE PRE-LOAD LOGIC ---
 let cachedAliveImage = null;
@@ -11,7 +11,7 @@ let cachedAliveImage = null;
 async function preLoadAliveImage() {
     try {
         // මෙතනදී config එකේ තියෙන default image එක cache කරගන්නවා
-        const imageUrl = config.ALIVE_IMG || "https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/zanta-md.png";
+        const imageUrl = config.ALIVE_IMG || "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg//";
         const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
         cachedAliveImage = Buffer.from(response.data);
         console.log("✅ [CACHE] Alive image pre-loaded successfully.");
@@ -87,7 +87,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
                     forwardedNewsletterMessageInfo: {
                         newsletterJid: CHANNEL_JID,
                         serverMessageId: 100,
-                        newsletterName: "𝒁𝑨𝑵𝑻𝑨-𝑴𝑫 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳"
+                        newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰"
                     }
                 }
             }, { quoted: mek });
