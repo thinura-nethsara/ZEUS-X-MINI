@@ -17,12 +17,12 @@ cmd({
         if (!fbRegex.test(q)) return reply("☹️ *ලින්ක් එක වැරදියි.*");
 
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
-        const currentBotName = settings.botName || config.DEFAULT_BOT_NAME || "ZANTA-MD";
+        const currentBotName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
         // --- 🖼️ IMAGE LOGIC: DB එකේ පින්තූරයක් ඇත්නම් එය පෙන්වයි ---
         const displayImg = (settings.botImage && settings.botImage !== "null") 
             ? { url: settings.botImage } 
-            : { url: "https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/zanta-md.png" };
+            : { url: "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg" };
 
         const loadingDesc = `╭━─━─━─━─━─━──━╮\n┃ *${currentBotName} FB Downloader*\n╰━─━─━─━─━─━──━╯\n\n⏳ *Waiting for download...*`;
 
