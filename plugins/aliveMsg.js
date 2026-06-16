@@ -16,9 +16,9 @@ function getAliveMessage() {
 *💬 ᴘʀᴇꜰɪx: {PREFIX}*
 *───────────────*
 *🌐 ᴄᴏɴᴛᴀᴄᴛ ᴢᴀɴᴛᴀ*
-> http://wa.me/+94743404814?text=*Hey__ZANTA*
+> http://wa.me/+94774571418?text=*Hey__Suduu*
 
-> *© POWERED BY ZANTA*`;
+> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰*`;
 }
 
 module.exports = { getAliveMessage };
