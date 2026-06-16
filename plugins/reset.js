@@ -25,7 +25,7 @@ cmd({
 
         // --- ⚙️ Default Settings ---
         const defaultSettings = {
-            botName: config.DEFAULT_BOT_NAME || "ZANTA-MD",
+            botName: config.DEFAULT_BOT_NAME || "ZEUS-X-MINI",
             ownerName: config.DEFAULT_OWNER_NAME || "Owner",
             prefix: config.DEFAULT_PREFIX || ".",
             workType: "public",
