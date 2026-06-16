@@ -7,16 +7,16 @@ function convertToBool(text, fault = 'true') {
 
 module.exports = {
     // 🔑 Essential Session & Owner Settings
-    OWNER_NUMBER: process.env.OWNER_NUMBER || "94764703165",
+    OWNER_NUMBER: process.env.OWNER_NUMBER || "94774571418",
 
     // 🤖 Default Fallback Settings
-    DEFAULT_BOT_NAME: process.env.DEFAULT_BOT_NAME || "ZANTA-MD",
-    DEFAULT_OWNER_NAME: process.env.DEFAULT_OWNER_NAME || "Akash nimsara",
+    DEFAULT_BOT_NAME: process.env.DEFAULT_BOT_NAME || "ZEUS-X-MINI",
+    DEFAULT_OWNER_NAME: process.env.DEFAULT_OWNER_NAME || "Mr ThinUzz",
     DEFAULT_PREFIX: process.env.DEFAULT_PREFIX || ".",
 
     // 🖼️ Media Settings (Alive image & Menu)
-    ALIVE_IMG: process.env.ALIVE_IMG || "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/zanta-md.png?raw=true",
-    MENU_IMG: process.env.MENU_IMG || "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/zanta-md.png?raw=true",
+    ALIVE_IMG: process.env.ALIVE_IMG || "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg",
+    MENU_IMG: process.env.MENU_IMG || "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg",
 
     // ⚙️ Dashboard / Database Defaults
     // මෙම අගයන් පළමු වතාවට Database එක සෑදීමේදී භාවිත වේ (Database & Dashboard Sync)
