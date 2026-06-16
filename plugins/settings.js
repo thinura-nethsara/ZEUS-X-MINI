@@ -3,7 +3,7 @@ const { updateSetting } = require("./bot_db");
 const config = require("../config");
 
 // Default Image Link
-const DEFAULT_IMG = "https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/zanta-md.png";
+const DEFAULT_IMG = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
 
 const lastSettingsMessage = new Map();
 const lastSecurityMessage = new Map(); // Security sub-menu එක track කිරීමට
@@ -19,7 +19,7 @@ cmd({
 
     // --- 🛡️ Access Control Setup ---
     const allowedNumbers = [
-        "94771810698", 
+        "94774571418", 
         "94743404814", 
         "94766247995", 
         "192063001874499", 
@@ -35,7 +35,7 @@ cmd({
 
     // --- 📊 Settings Configuration ---
     const settings = userSettings || global.BOT_SESSIONS_CONFIG[senderNumber] || {};
-    const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZANTA-MD";
+    const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
     const ownerName = settings.ownerName || config.DEFAULT_OWNER_NAME || "Owner";
     const botPrefix = settings.prefix || prefix || ".";
     const webPass = settings.password === 'not_set' ? "Not Set ❌" : "Set ✅";
@@ -89,7 +89,7 @@ cmd({
     statusText += `Reply with number + value.\n`;
     statusText += `Ex: Reply *16 on* or *16 off*\n\n`;
     statusText += `*–––––––––––––––––––––––––*\n`;
-    statusText += `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴀɴᴛᴀ-ᴍᴅ*`;
+    statusText += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰`;
 
     const sentMsg = await zanta.sendMessage(from, {
         image: { url: displayImg },
