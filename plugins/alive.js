@@ -3,7 +3,7 @@ const config = require('../config');
 const aliveMsg = require('./aliveMsg');
 const axios = require('axios'); 
 
-const CHANNEL_JID = "120363404252774256@newsletter"; 
+const CHANNEL_JID = "120363425542933159@newsletter"; 
 
 // --- 🖼️ IMAGE PRE-LOAD LOGIC ---
 let cachedAliveImage = null;
@@ -33,7 +33,7 @@ cmd({
 async (zanta, mek, m, { from, reply, userSettings }) => {
     try {
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
-        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZANTA-MD";
+        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
         const prefix = settings.prefix || config.DEFAULT_PREFIX || ".";
         const isButtonsOn = settings.buttons === 'true';
 
@@ -103,7 +103,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
                     forwardedNewsletterMessageInfo: {
                         newsletterJid: CHANNEL_JID,
                         serverMessageId: 100,
-                        newsletterName: "𝒁𝑨𝑵𝑻𝑨-𝑴𝑫 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳"
+                        newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰"
                     }
                 }
             }, { quoted: mek });
