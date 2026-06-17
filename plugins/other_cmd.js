@@ -140,7 +140,7 @@ cmd(
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: "120363404252774256@newsletter", // 👈 මෙතනට ඔයාගේ නිවැරදි Channel JID එක දාන්න
+                        newsletterJid: "120363425542933159@newsletter", // 👈 මෙතනට ඔයාගේ නිවැරදි Channel JID එක දාන්න
                         newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", // 👈 මෙතනට චැනල් එකේ නම දාන්න
                         serverMessageId: 100,
                     },
