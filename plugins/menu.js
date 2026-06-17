@@ -127,7 +127,7 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
                 contextInfo
             }, { quoted: mek });
         } else {
-            let menuText = headerText + `╭━━〔 📜 MENU LIST 〕━━┈⊷\n`;
+            let menuText = headerText + `╭〔 📜 MENU LIST 〕\n`;
             categoryKeys.forEach((catKey, index) => {
                 let title = catKey.toUpperCase();
                 let emoji = { main: '🏠', download: '📥', tools: '🛠', logo: '🎨', media: '🖼' }[catKey] || '📌';
