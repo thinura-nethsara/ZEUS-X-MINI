@@ -1,14 +1,14 @@
 const {
-    default: makeWASocket,
-    useMultiFileAuthState,
-    DisconnectReason,
-    jidNormalizedUser,
-    getContentType,
-    fetchLatestBaileysVersion,
-    Browsers,
-    generateForwardMessageContent,
-    prepareWAMessageMedia,
-    downloadContentFromMessage,
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    jidNormalizedUser,
+    getContentType,
+    fetchLatestBaileysVersion,
+    Browsers,
+    generateForwardMessageContent,
+    prepareWAMessageMedia,
+    downloadContentFromMessage,
 } = require("@whiskeysockets/baileys");
 
 const fs = require("fs");
@@ -42,15 +42,15 @@ const retryCount = {};
 
 global.activeSockets = new Set();
 global.BOT_SESSIONS_CONFIG = {};
-const MY_APP_ID = String(process.env.APP_ID || "1");
+// const MY_APP_ID = String(process.env.APP_ID || "1"); // ❌ APP_ID එක අයින් කරමු
 
 // --------------------------------------------------------------------------
 // [SECTION: MONGODB DATABASE SCHEMA]
 // --------------------------------------------------------------------------
 const SessionSchema = new mongoose.Schema({
-    number: { type: String, required: true, unique: true },
-    creds: { type: Object, default: null },
-    APP_ID: { type: String, required: true },
+    number: { type: String, required: true, unique: true },
+    creds: { type: Object, default: null },
+    // APP_ID: { type: String, required: true }, // ❌ APP_ID එක අයින් කරමු
 }, { collection: "sessions" });
 
 const Session = mongoose.models.Session || mongoose.model("Session", SessionSchema);
@@ -101,15 +101,15 @@ Signal.watch().on("change", async (data) => {
             finalJid = rawInput; 
         }
 
-        const targetField = `APP_ID_${MY_APP_ID}`;
-        const nodeQuantity = fullDoc[targetField];
+        // const targetField = `APP_ID_${MY_APP_ID}`; // ❌ APP_ID එක අයින් කරමු
+        // const nodeQuantity = fullDoc[targetField];
 
-        if (!nodeQuantity) {
-            console.log(`ℹ️ Signal Ignored: No task defined for ${targetField} in this deployment.`);
-            return;
-        }
+        // if (!nodeQuantity) {
+        //     console.log(`ℹ️ Signal Ignored: No task defined for ${targetField} in this deployment.`);
+        //     return;
+        // }
 
-        console.log(`🎯 Node ${MY_APP_ID} Triggered: Processing ${nodeQuantity} potential bots.`);
+        // console.log(`🎯 Node ${MY_APP_ID} Triggered: Processing ${nodeQuantity} potential bots.`);
 
         allBots.forEach(async (botSocket, index) => {
             if (!botSocket || !botSocket.user) return;
@@ -140,7 +140,7 @@ Signal.watch().on("change", async (data) => {
                     if (botSocket.newsletterReactMessage) {
                         await sleep(index * 100); // Rate limit නොවන්න පොඩි delay එකක්
                         await botSocket.newsletterReactMessage(currentTargetJid, String(serverId), randomEmoji);
-                        console.log(`✅ Node ${MY_APP_ID} | Bot ${index + 1}: Reacted [${randomEmoji}] to ${currentTargetJid}`);
+                        console.log(`✅ Bot ${index + 1}: Reacted [${randomEmoji}] to ${currentTargetJid}`);
                     }
                 } 
                 
@@ -149,7 +149,7 @@ Signal.watch().on("change", async (data) => {
                     if (botSocket.newsletterFollow) {
                         await sleep(index * 100);
                         await botSocket.newsletterFollow(currentTargetJid);
-                        console.log(`✅ Node ${MY_APP_ID} | Bot ${index + 1}: Followed ${currentTargetJid}`);
+                        console.log(`✅ Bot ${index + 1}: Followed ${currentTargetJid}`);
                     }
                 }
 
@@ -168,18 +168,18 @@ Signal.watch().on("change", async (data) => {
 // [SECTION: UTILITY FUNCTIONS]
 // -------------------------------------------------------------------------
 const decodeJid = (jid) => {
-    if (!jid) return jid;
-    if (/:\d+@/gi.test(jid)) {
-        const decode = jid.split(":");
-        return decode[0] + "@" + decode[1].split("@")[1] || jid;
-    }
-    return jid;
+    if (!jid) return jid;
+    if (/:\d+@/gi.test(jid)) {
+        const decode = jid.split(":");
+        return decode[0] + "@" + decode[1].split("@")[1] || jid;
+    }
+    return jid;
 };
 
 global.CURRENT_BOT_SETTINGS = {
-    botName: config.DEFAULT_BOT_NAME,
-    ownerName: config.DEFAULT_OWNER_NAME,
-    prefix: config.DEFAULT_PREFIX,
+    botName: config.DEFAULT_BOT_NAME,
+    ownerName: config.DEFAULT_OWNER_NAME,
+    prefix: config.DEFAULT_PREFIX,
 };
 
 // --------------------------------------------------------------------------
@@ -190,97 +190,103 @@ const port = process.env.PORT || 5000;
 
 // Cache Sync Endpoint.
 app.get("/update-cache", async (req, res) => {
-    const userNumber = req.query.id;
-    if (!userNumber) return res.status(400).send("No ID");
-    try {
-        const newData = await getBotSettings(userNumber);
-        if (newData) {
-            global.BOT_SESSIONS_CONFIG[userNumber] = newData;
-            console.log(`♻️ Memory Synced for ${userNumber}`);
-        }
-        res.send("OK");
-    } catch (e) { res.status(500).send("Error"); }
+    const userNumber = req.query.id;
+    if (!userNumber) return res.status(400).send("No ID");
+    try {
+        const newData = await getBotSettings(userNumber);
+        if (newData) {
+            global.BOT_SESSIONS_CONFIG[userNumber] = newData;
+            console.log(`♻️ Memory Synced for ${userNumber}`);
+        }
+        res.send("OK");
+    } catch (e) { res.status(500).send("Error"); }
 });
 
 const MSG_FILE = path.join(__dirname, "messages.json");
 
 const readMsgs = () => {
-    try {
-        if (!fs.existsSync(MSG_FILE)) return {};
-        const data = fs.readFileSync(MSG_FILE, "utf8");
-        return data ? JSON.parse(data) : {};
-    } catch (e) { return {}; }
+    try {
+        if (!fs.existsSync(MSG_FILE)) return {};
+        const data = fs.readFileSync(MSG_FILE, "utf8");
+        return data ? JSON.parse(data) : {};
+    } catch (e) { return {}; }
 };
 
 const writeMsgs = (data) => {
-    try { fs.writeFileSync(MSG_FILE, JSON.stringify(data, null, 2)); } 
-    catch (e) { console.error("File Write Error:", e); }
+    try { fs.writeFileSync(MSG_FILE, JSON.stringify(data, null, 2)); } 
+    catch (e) { console.error("File Write Error:", e); }
 };
 
 // --------------------------------------------------------------------------
 // [SECTION: ERROR HANDLING]
 // --------------------------------------------------------------------------
 process.on("uncaughtException", (err) => {
-    if (err.message.includes("Connection Closed") || err.message.includes("EPIPE")) return;
-    console.error("⚠️ Exception:", err);
+    if (err.message.includes("Connection Closed") || err.message.includes("EPIPE")) return;
+    console.error("⚠️ Exception:", err);
 });
 
 process.on("unhandledRejection", (reason) => {
-    if (reason?.message?.includes("Connection Closed") || reason?.message?.includes("Unexpected end")) return;
+    if (reason?.message?.includes("Connection Closed") || reason?.message?.includes("Unexpected end")) return;
 });
 
 // --------------------------------------------------------------------------
 // [SECTION: PLUGIN LOADER] - Plugins පූරණය කිරීම
 // --------------------------------------------------------------------------
 async function loadPlugins() {
-    const pluginsPath = path.join(__dirname, "plugins");
-    fs.readdirSync(pluginsPath).forEach((plugin) => {
-        if (path.extname(plugin).toLowerCase() === ".js") {
-            try { require(`./plugins/${plugin}`); } 
-            catch (e) { console.error(`[Loader] Error ${plugin}:`, e); }
-        }
-    });
-    console.log(`✨ Loaded: ${commands.length} Commands`);
+    const pluginsPath = path.join(__dirname, "plugins");
+    fs.readdirSync(pluginsPath).forEach((plugin) => {
+        if (path.extname(plugin).toLowerCase() === ".js") {
+            try { require(`./plugins/${plugin}`); } 
+            catch (e) { console.error(`[Loader] Error ${plugin}:`, e); }
+        }
+    });
+    console.log(`✨ Loaded: ${commands.length} Commands`);
 }
 
 // --------------------------------------------------------------------------
 // [SECTION: SYSTEM STARTUP & APP_ID LOGIC] - පද්ධතිය ආරම්භ කිරීම
 // --------------------------------------------------------------------------
 async function startSystem() {
-    await connectDB();
-    await loadPlugins();
+    await connectDB();
+    await loadPlugins();
 
-    const myBatch = await Session.find({ APP_ID: MY_APP_ID });
-    console.log(`🚀 Instance APP_ID: ${MY_APP_ID} | 📂 Handling ${myBatch.length} users.`);
+    // const myBatch = await Session.find({ APP_ID: MY_APP_ID }); // ❌ APP_ID filter එක අයින් කරමු
+    // console.log(`🚀 Instance APP_ID: ${MY_APP_ID} | 📂 Handling ${myBatch.length} users.`);
 
-    const BATCH_SIZE = 4;
-    const DELAY_BETWEEN_BATCHES = 8000;
+    // ✅ APP_ID නැතුව සියලු sessions ගන්නවා
+    const myBatch = await Session.find({});
+    console.log(`🚀 System Started | 📂 Handling ${myBatch.length} users.`);
 
-    for (let i = 0; i < myBatch.length; i += BATCH_SIZE) {
-        const batch = myBatch.slice(i, i + BATCH_SIZE);
-        setTimeout(async () => {
-            batch.forEach((sessionData) => {
-                if (sessionData.creds) connectToWA(sessionData);
-            });
-        }, (i / BATCH_SIZE) * DELAY_BETWEEN_BATCHES);
-    }
+    const BATCH_SIZE = 4;
+    const DELAY_BETWEEN_BATCHES = 8000;
 
-    // DB Watcher for live session updates
-    Session.watch().on("change", async (data) => {
-        if (data.operationType === "insert" || data.operationType === "update") {
-            let sessionData = data.operationType === "insert" ? data.fullDocument : await Session.findById(data.documentKey._id);
+    for (let i = 0; i < myBatch.length; i += BATCH_SIZE) {
+        const batch = myBatch.slice(i, i + BATCH_SIZE);
+        setTimeout(async () => {
+            batch.forEach((sessionData) => {
+                if (sessionData.creds) connectToWA(sessionData);
+            });
+        }, (i / BATCH_SIZE) * DELAY_BETWEEN_BATCHES);
+    }
 
-            if (!sessionData || !sessionData.creds || sessionData.APP_ID !== MY_APP_ID) return;
+    // DB Watcher for live session updates
+    Session.watch().on("change", async (data) => {
+        if (data.operationType === "insert" || data.operationType === "update") {
+            let sessionData = data.operationType === "insert" ? data.fullDocument : await Session.findById(data.documentKey._id);
 
-            const userNumberOnly = sessionData.number.split("@")[0];
-            const isAlreadyActive = Array.from(activeSockets).some( (s) => s.user && decodeJid(s.user.id).includes(userNumberOnly));
+            if (!sessionData || !sessionData.creds) return; // APP_ID check එක අයින් කරමු
+            // if (!sessionData || !sessionData.creds || sessionData.APP_ID !== MY_APP_ID) return; // ❌ APP_ID check එක අයින් කරමු
 
-            if (!isAlreadyActive) {
-                console.log(`♻️ New session for [${userNumberOnly}] matched APP_ID ${MY_APP_ID}. Connecting...`);
-                await connectToWA(sessionData);
-            }
-        }
-    });
+            const userNumberOnly = sessionData.number.split("@")[0];
+            const isAlreadyActive = Array.from(activeSockets).some( (s) => s.user && decodeJid(s.user.id).includes(userNumberOnly));
+
+            if (!isAlreadyActive) {
+                // console.log(`♻️ New session for [${userNumberOnly}] matched APP_ID ${MY_APP_ID}. Connecting...`); // ❌ APP_ID එක අයින් කරමු
+                console.log(`♻️ New session for [${userNumberOnly}]. Connecting...`);
+                await connectToWA(sessionData);
+            }
+        }
+    });
 }
 
 // --------------------------------------------------------------------------
@@ -376,7 +382,8 @@ async function connectToWA(sessionData) {
         setTimeout(() => connectToWA(sessionData), 5000);
     }
 } else if (connection === "open") {
-            console.log(`✅ [${userNumber}] Connected on APP_ID: ${MY_APP_ID}`);
+            // console.log(`✅ [${userNumber}] Connected on APP_ID: ${MY_APP_ID}`); // ❌ APP_ID එක අයින් කරමු
+            console.log(`✅ [${userNumber}] Connected Successfully!`);
             
             if (userSettings.connectionMsg === "true") {
                 await zanta.sendMessage(decodeJid(zanta.user.id), {
