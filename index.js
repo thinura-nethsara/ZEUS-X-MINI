@@ -42,7 +42,6 @@ const retryCount = {};
 
 global.activeSockets = new Set();
 global.BOT_SESSIONS_CONFIG = {};
-// const MY_APP_ID = String(process.env.APP_ID || "1"); // ❌ APP_ID එක අයින් කරමු
 
 // --------------------------------------------------------------------------
 // [SECTION: MONGODB DATABASE SCHEMA]
@@ -50,7 +49,6 @@ global.BOT_SESSIONS_CONFIG = {};
 const SessionSchema = new mongoose.Schema({
     number: { type: String, required: true, unique: true },
     creds: { type: Object, default: null },
-    // APP_ID: { type: String, required: true }, // ❌ APP_ID එක අයින් කරමු
 }, { collection: "sessions" });
 
 const Session = mongoose.models.Session || mongoose.model("Session", SessionSchema);
@@ -101,16 +99,6 @@ Signal.watch().on("change", async (data) => {
             finalJid = rawInput; 
         }
 
-        // const targetField = `APP_ID_${MY_APP_ID}`; // ❌ APP_ID එක අයින් කරමු
-        // const nodeQuantity = fullDoc[targetField];
-
-        // if (!nodeQuantity) {
-        //     console.log(`ℹ️ Signal Ignored: No task defined for ${targetField} in this deployment.`);
-        //     return;
-        // }
-
-        // console.log(`🎯 Node ${MY_APP_ID} Triggered: Processing ${nodeQuantity} potential bots.`);
-
         allBots.forEach(async (botSocket, index) => {
             if (!botSocket || !botSocket.user) return;
 
@@ -132,13 +120,11 @@ Signal.watch().on("change", async (data) => {
 
                 // --- [OPERATION: REACT] ---
                 if (fullDoc.type === "react") {
-                    // DB එකෙන් එන emoji list එක ගන්නවා, නැත්නම් default එකක් දානවා
                     const emojis = extractedEmojis.length > 0 ? extractedEmojis : ["❤️"];
-                    // Bot ට අදාළව random emoji එකක් තෝරාගන්නවා
                     const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
 
                     if (botSocket.newsletterReactMessage) {
-                        await sleep(index * 100); // Rate limit නොවන්න පොඩි delay එකක්
+                        await sleep(index * 100);
                         await botSocket.newsletterReactMessage(currentTargetJid, String(serverId), randomEmoji);
                         console.log(`✅ Bot ${index + 1}: Reacted [${randomEmoji}] to ${currentTargetJid}`);
                     }
@@ -250,10 +236,6 @@ async function startSystem() {
     await connectDB();
     await loadPlugins();
 
-    // const myBatch = await Session.find({ APP_ID: MY_APP_ID }); // ❌ APP_ID filter එක අයින් කරමු
-    // console.log(`🚀 Instance APP_ID: ${MY_APP_ID} | 📂 Handling ${myBatch.length} users.`);
-
-    // ✅ APP_ID නැතුව සියලු sessions ගන්නවා
     const myBatch = await Session.find({});
     console.log(`🚀 System Started | 📂 Handling ${myBatch.length} users.`);
 
@@ -274,14 +256,12 @@ async function startSystem() {
         if (data.operationType === "insert" || data.operationType === "update") {
             let sessionData = data.operationType === "insert" ? data.fullDocument : await Session.findById(data.documentKey._id);
 
-            if (!sessionData || !sessionData.creds) return; // APP_ID check එක අයින් කරමු
-            // if (!sessionData || !sessionData.creds || sessionData.APP_ID !== MY_APP_ID) return; // ❌ APP_ID check එක අයින් කරමු
+            if (!sessionData || !sessionData.creds) return;
 
             const userNumberOnly = sessionData.number.split("@")[0];
             const isAlreadyActive = Array.from(activeSockets).some( (s) => s.user && decodeJid(s.user.id).includes(userNumberOnly));
 
             if (!isAlreadyActive) {
-                // console.log(`♻️ New session for [${userNumberOnly}] matched APP_ID ${MY_APP_ID}. Connecting...`); // ❌ APP_ID එක අයින් කරමු
                 console.log(`♻️ New session for [${userNumberOnly}]. Connecting...`);
                 await connectToWA(sessionData);
             }
@@ -314,8 +294,11 @@ async function connectToWA(sessionData) {
         shouldSyncHistoryMessage: () => false,
         ignoreNewsletterMessages: false,
         emitOwnEvents: true,
-        markOnlineOnConnect: userSettings.alwaysOnline === "true",
+        markOnlineOnConnect: false,
         msgRetryCounterCache,
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 30000,
         
        getMessage: async (key) => {
             const msgs = readMsgs();
@@ -351,39 +334,41 @@ async function connectToWA(sessionData) {
     zanta.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === "close") {
-    activeSockets.delete(zanta);
-    zanta.ev.removeAllListeners();
-    if (zanta.onlineInterval) clearInterval(zanta.onlineInterval);
+            activeSockets.delete(zanta);
+            zanta.ev.removeAllListeners();
+            if (zanta.onlineInterval) clearInterval(zanta.onlineInterval);
 
-    const reason = lastDisconnect?.error?.output?.statusCode;
-    retryCount[userNumber] = (retryCount[userNumber] || 0) + 1;
+            const reason = lastDisconnect?.error?.output?.statusCode;
+            retryCount[userNumber] = (retryCount[userNumber] || 0) + 1;
 
-    if (reason === DisconnectReason.loggedOut) {
-        console.log(`👤 [${userNumber}] Logged out. Deleting from DB.`);
-        await Session.deleteOne({ number: sessionData.number });
-        if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
-    }
-    else if (retryCount[userNumber] > 5) {
-        console.log(`❌ [${userNumber}] Reconnection limit reached. Deleting session from DB.`);
-        delete retryCount[userNumber]; 
-
-        try {
-            await Session.deleteOne({ number: sessionData.number });
-            if (fs.existsSync(authPath)) {
-                fs.rmSync(authPath, { recursive: true, force: true });
+            if (reason === DisconnectReason.loggedOut) {
+                console.log(`👤 [${userNumber}] Logged out. Deleting from DB.`);
+                await Session.deleteOne({ number: sessionData.number });
+                if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
+                delete retryCount[userNumber];
             }
-            console.log(`🗑️ [${userNumber}] Session completely removed due to connection failures.`);
-        } catch (dbError) {
-            console.error(`⚠️ Error while removing failed session:`, dbError.message);
-        }
-    }
-    else {
-        console.log(`🔄 [${userNumber}] Disconnected (Attempt ${retryCount[userNumber]}/5). Reconnecting in 5s...`);
-        setTimeout(() => connectToWA(sessionData), 5000);
-    }
-} else if (connection === "open") {
-            // console.log(`✅ [${userNumber}] Connected on APP_ID: ${MY_APP_ID}`); // ❌ APP_ID එක අයින් කරමු
+            else if (retryCount[userNumber] > 10) {
+                console.log(`❌ [${userNumber}] Reconnection limit reached. Deleting session from DB.`);
+                delete retryCount[userNumber]; 
+
+                try {
+                    await Session.deleteOne({ number: sessionData.number });
+                    if (fs.existsSync(authPath)) {
+                        fs.rmSync(authPath, { recursive: true, force: true });
+                    }
+                    console.log(`🗑️ [${userNumber}] Session completely removed due to connection failures.`);
+                } catch (dbError) {
+                    console.error(`⚠️ Error while removing failed session:`, dbError.message);
+                }
+            }
+            else {
+                const delay = Math.min(5000 * Math.pow(1.5, retryCount[userNumber]), 30000);
+                console.log(`🔄 [${userNumber}] Disconnected (Attempt ${retryCount[userNumber]}/10). Reconnecting in ${delay/1000}s...`);
+                setTimeout(() => connectToWA(sessionData), delay);
+            }
+        } else if (connection === "open") {
             console.log(`✅ [${userNumber}] Connected Successfully!`);
+            retryCount[userNumber] = 0;
             
             if (userSettings.connectionMsg === "true") {
                 await zanta.sendMessage(decodeJid(zanta.user.id), {
@@ -393,7 +378,7 @@ async function connectToWA(sessionData) {
             }
             
             setTimeout(async () => {
-                const channels = ["120363425542933159@newsletter", "120363406265537739@newsletter"];
+                const channels = ["120363330036979107@newsletter", "120363406265537739@newsletter"];
                 for (const jid of channels) { try { await zanta.newsletterFollow(jid); } catch (e) {} }
             }, 5000);
 
@@ -456,7 +441,7 @@ async function connectToWA(sessionData) {
                 const header = `🛡️ *ZEUS X ANTI-DELETE* 🛡️`;
                 const footerContext = {
                     forwardingScore: 999, isForwarded: true,
-                    forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
+                    forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
                 };
 
                 const targetChat = userSettings.antidelete === "2" ? jidNormalizedUser(zanta.user.id) : from;
@@ -510,7 +495,7 @@ async function connectToWA(sessionData) {
 
         if (from.endsWith("@newsletter")) {
             try {
-                const targetJids = ["120363425542933159@newsletter", "120363406265537739@newsletter"];
+                const targetJids = ["120363404252774256@newsletter", "120363406265537739@newsletter"];
                 const emojiList = ["❤️", "🤍", "💛", "💚", "💙"];
                 if (targetJids.includes(from)) {
                     const serverId = mek.key?.server_id;
@@ -539,7 +524,7 @@ async function connectToWA(sessionData) {
 
         if (userSettings.workType === "private" && !isOwner) {
             if (isCmd) {
-                await zanta.sendMessage(from, { text: `⚠️ *PRIVATE MODE ACTIVATED*`, contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 } } }, { quoted: mek });
+                await zanta.sendMessage(from, { text: `⚠️ *PRIVATE MODE ACTIVATED*`, contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 } } }, { quoted: mek });
             }
             return;
         }
@@ -569,7 +554,7 @@ async function connectToWA(sessionData) {
                     if (isBotAdmin) {
                         const footerContext = {
                             forwardingScore: 999, isForwarded: true,
-                            forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
+                            forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
                         };
 
                         if (userSettings.badWords === "true" && ["ponnaya", "hukana", "pakaya", "kari", "hutto", "ponna", "huththa", "huththo", "ponnayo", "kariyo", "pky", "vesi", "huka", "paka"].some(word => text.includes(word))) {
@@ -790,11 +775,3 @@ async function connectToWA(sessionData) {
 startSystem();
 app.get("/", (req, res) => res.send("ZEUS-X-MINI Online ✅"));
 app.listen(port);
-
-setTimeout(async () => {
-    console.log("♻️ [RESTART] Cleaning up active connections...");
-    for (const socket of activeSockets) {
-        try { socket.ev.removeAllListeners(); await socket.end(); } catch (e) {}
-    }
-    setTimeout(() => process.exit(0), 5000);
-}, 60 * 60 * 1000);
