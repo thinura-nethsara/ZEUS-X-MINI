@@ -65,7 +65,7 @@ cmd({
                             document: { url: finalLink }, 
                             mimetype: "audio/mpeg", 
                             fileName: `${video.title}.mp3`,
-                            caption: "> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐍𝐄𝐗𝐔𝐒 𝐈𝐍𝐂 </>_"
+                            caption: "> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_"
                         }, { quoted: msgUpdate });
                     }
 
