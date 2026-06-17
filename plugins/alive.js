@@ -73,7 +73,6 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
             return await zanta.sendMessage(from, {
                 image: imageToDisplay, 
                 caption: finalMsg,
-                footer: `© ${botName} YOUR MINI BOT `,
                 buttons: [
                     { buttonId: prefix + "ping", buttonText: { displayText: "⚡ PING" }, type: 1 },
                     { buttonId: prefix + "menu", buttonText: { displayText: "📜 MENU" }, type: 1 },
