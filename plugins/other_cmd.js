@@ -58,7 +58,7 @@ cmd(
                 jidMsg += `\n👤 *Your JID:*\n🎫 \`${sender}\`\n`;
             }
 
-            jidMsg += `\n> *© ${botName}*`;
+            jidMsg += `\n> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
 
             await zanta.sendMessage(
                 from,
@@ -155,7 +155,7 @@ END:VCARD`
 
             // Edit කරන මැසේජ් එකට Fake Meta Context එක එකතු කිරීම
             await zanta.sendMessage(from, {
-                text: `⚡ *${botName} SPEED*\n\n🚄 *Latency:* ${ping}ms\n📡 *Status:* Online\n\n> *© ${botName}*`,
+                text: `⚡ *${botName} SPEED*\n\n🚄 *Latency:* ${ping}ms\n📡 *Status:* Online\n\n> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_*`,
                 edit: pinger.key,
                 contextInfo: {
                     forwardingScore: 999,
@@ -201,7 +201,7 @@ cmd(
             const result = await translate(text, { to: "si" });
 
             await zanta.sendMessage(from, {
-                text: `${result.text}\n\n> *© ${botName}*`,
+                text: `${result.text}\n\n> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_*`,
                 edit: loading.key,
             });
         } catch (err) {
