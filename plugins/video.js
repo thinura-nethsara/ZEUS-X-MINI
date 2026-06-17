@@ -5,9 +5,9 @@ const config = require("../config");
 
 cmd({
     pattern: "video",
-    alias: ["ytv", "mp4", "vd"],
+    alias: ["ytv", "mp4", "vdo"],
     react: "🎬",
-    desc: "Download YouTube MP4 with quality selection",
+    desc: "Download YouTube MP4 with selection menu",
     category: "download",
     filename: __filename,
 }, async (bot, mek, m, { from, q, reply, prefix, userSettings }) => {
@@ -22,48 +22,24 @@ cmd({
         const video = search.videos[0];
         if (!video) return reply("❌ No results found on YouTube.");
 
-        // Get video details from API
-        const videoData = await getVideoDetails(video.url);
-        if (!videoData) return reply("❌ Failed to fetch video details.");
-
         let msg = `🎬 *ZEUS X VIDEO PLAYER* 🎬\n\n` +
-                  `📝 *Title:* ${videoData.title}\n` +
-                  `👤 *Channel:* ${videoData.channel_author || video.author.name}\n` +
-                  `⏱️ *Duration:* ${videoData.duration || video.timestamp}\n` +
-                  `🎯 *Quality:* ${videoData.quality_found || '720'}\n` +
-                  `📊 *Qualities:* ${videoData.all_qualities?.length || 0}\n\n`;
+                  `📝 *Title:* ${video.title}\n` +
+                  `👤 *Uploader:* ${video.author.name}\n` +
+                  `⏱️ *Duration:* ${video.timestamp}\n` +
+                  `🔗 *Link:* ${video.url}\n\n`;
 
         // --- BUTTON MODE ---
         if (isButtonsOn) {
             msg += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
 
-            // Create quality buttons
-            const qualityButtons = [];
-            const qualities = videoData.all_qualities || [];
-            
-            // Show top 3 qualities as buttons
-            const qualitiesToShow = qualities.slice(0, 3);
-            qualitiesToShow.forEach((q, index) => {
-                qualityButtons.push({
-                    buttonId: `quality_${q.quality}`,
-                    buttonText: { displayText: `📹 ${q.quality}p` },
-                    type: 1
-                });
-            });
-
-            // If more than 3 qualities, add a "More" button
-            if (qualities.length > 3) {
-                qualityButtons.push({
-                    buttonId: "more_qualities",
-                    buttonText: { displayText: "📋 More Qualities" },
-                    type: 1
-                });
-            }
-
             const sentMsg = await bot.sendMessage(from, {
-                image: { url: videoData.thumbnail || video.thumbnail },
+                image: { url: video.thumbnail },
                 caption: msg,
-                buttons: qualityButtons,
+                footer: `© ${botName}`,
+                buttons: [
+                    { buttonId: "video_360p", buttonText: { displayText: "🎬 360p Video" }, type: 1 },
+                    { buttonId: "video_720p", buttonText: { displayText: "📹 720p Video" }, type: 1 }
+                ],
                 headerType: 4
             }, { quoted: mek });
 
@@ -79,6 +55,8 @@ cmd({
                         selectedButton = msgUpdate.message.buttonsResponseMessage.selectedButtonId;
                     } else if (msgUpdate.message.templateButtonReplyMessage) {
                         selectedButton = msgUpdate.message.templateButtonReplyMessage.selectedId;
+                    } else if (msgUpdate.message.interactiveResponseMessage) {
+                        selectedButton = msgUpdate.message.interactiveResponseMessage.nativeFlowResponseMessage?.buttonsMessage?.selectedButtonId;
                     }
 
                     const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo || 
@@ -87,75 +65,29 @@ cmd({
 
                     const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
 
-                    if (isReplyToBot && selectedButton) {
+                    if (isReplyToBot && (selectedButton === 'video_360p' || selectedButton === 'video_720p')) {
                         bot.ev.off('messages.upsert', buttonListener);
 
                         await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
                         try {
-                            let downloadUrl = null;
-                            let quality = '';
-
-                            if (selectedButton === 'more_qualities') {
-                                // Show all qualities as text
-                                let qualityList = `📋 *Available Qualities*\n\n`;
-                                qualities.forEach((q, index) => {
-                                    qualityList += `${index + 1}. ${q.quality}p\n`;
-                                });
-                                qualityList += `\n*Reply with number to select quality*`;
-
-                                const qualityMsg = await bot.sendMessage(from, { 
-                                    text: qualityList 
-                                }, { quoted: msgUpdate });
-
-                                // Wait for quality selection
-                                const qualityListener = async (update2) => {
-                                    const msgUpdate2 = update2.messages[0];
-                                    if (!msgUpdate2 || !msgUpdate2.message) return;
-
-                                    const body = msgUpdate2.message.conversation || 
-                                               msgUpdate2.message.extendedTextMessage?.text;
-                                    
-                                    const isReplyToQuality = msgUpdate2.message.extendedTextMessage?.contextInfo?.stanzaId === qualityMsg.key.id;
-
-                                    if (isReplyToQuality && body && !isNaN(body)) {
-                                        const index = parseInt(body) - 1;
-                                        if (index >= 0 && index < qualities.length) {
-                                            bot.ev.off('messages.upsert', qualityListener);
-                                            downloadUrl = qualities[index].downloadUrl;
-                                            quality = qualities[index].quality;
-                                            
-                                            await sendVideo(bot, from, msgUpdate2, downloadUrl, videoData, quality, botName);
-                                        }
-                                    }
-                                };
-
-                                bot.ev.on('messages.upsert', qualityListener);
-                                setTimeout(() => {
-                                    bot.ev.off('messages.upsert', qualityListener);
-                                }, 60000);
-
-                                return;
-                            } else {
-                                // Find quality from button ID
-                                const qualityMatch = selectedButton.match(/quality_(\d+)/);
-                                if (qualityMatch) {
-                                    const selectedQuality = qualityMatch[1];
-                                    const qualityObj = qualities.find(q => q.quality === selectedQuality);
-                                    if (qualityObj) {
-                                        downloadUrl = qualityObj.downloadUrl;
-                                        quality = qualityObj.quality;
-                                    }
-                                }
-                            }
-
-                            if (downloadUrl) {
-                                await sendVideo(bot, from, msgUpdate, downloadUrl, videoData, quality, botName);
-                            } else {
+                            // Determine quality
+                            const quality = selectedButton === 'video_360p' ? '360p' : '720p';
+                            const downloadUrl = await getVideoLink(video.url, quality);
+                            
+                            if (!downloadUrl) {
                                 await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                                reply("❌ Download link not found.");
+                                return reply("❌ Download link not found for " + quality);
                             }
 
+                            // Send video
+                            await bot.sendMessage(from, { 
+                                video: { url: downloadUrl },
+                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                                mimetype: "video/mp4"
+                            }, { quoted: msgUpdate });
+
+                            await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
                         } catch (err) {
                             console.error("Download Error:", err);
                             await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
@@ -176,18 +108,13 @@ cmd({
         }
 
         // --- TEXT MODE (Default) ---
-        let qualityList = `*Available Qualities:*\n\n`;
-        const qualities = videoData.all_qualities || [];
-        qualities.forEach((q, index) => {
-            qualityList += `${index + 1}. ${q.quality}p\n`;
-        });
-        
-        msg += qualityList +
-               `\n*Reply with a number to select quality*\n\n` +
+        msg += `*Reply with a number:* \n\n` +
+               `1️⃣ *360p Video* (MP4)\n` +
+               `2️⃣ *720p Video* (MP4)\n\n` +
                `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
 
         const sentMsg = await bot.sendMessage(from, { 
-            image: { url: videoData.thumbnail || video.thumbnail }, 
+            image: { url: video.thumbnail }, 
             caption: msg 
         }, { quoted: mek });
 
@@ -203,23 +130,31 @@ cmd({
                 const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
                 const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
 
-                if (isReplyToBot && body && !isNaN(body)) {
-                    const index = parseInt(body) - 1;
-                    if (index >= 0 && index < qualities.length) {
-                        bot.ev.off('messages.upsert', listener);
+                if (isReplyToBot && (body === '1' || body === '2')) {
+                    bot.ev.off('messages.upsert', listener);
 
-                        await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+                    await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
-                        try {
-                            const qualityObj = qualities[index];
-                            await sendVideo(bot, from, msgUpdate, qualityObj.downloadUrl, videoData, qualityObj.quality, botName);
-                        } catch (err) {
-                            console.error("Download Error:", err);
+                    try {
+                        const quality = body === '1' ? '360p' : '720p';
+                        const downloadUrl = await getVideoLink(video.url, quality);
+                        
+                        if (!downloadUrl) {
                             await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                            reply("❌ Error downloading video.");
+                            return reply("❌ Download link not found for " + quality);
                         }
-                    } else {
-                        reply("❌ Invalid quality number. Please choose from the list.");
+
+                        await bot.sendMessage(from, { 
+                            video: { url: downloadUrl },
+                            caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                            mimetype: "video/mp4"
+                        }, { quoted: msgUpdate });
+
+                        await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                    } catch (err) {
+                        console.error("Download Error:", err);
+                        await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                        reply("❌ Error downloading video.");
                     }
                 }
             } catch (err) {
@@ -238,56 +173,36 @@ cmd({
     }
 });
 
-// --- Helper function to send video ---
-async function sendVideo(bot, from, msgUpdate, downloadUrl, videoData, quality, botName) {
+// --- Video Download Function ---
+async function getVideoLink(videoUrl, quality = '360p') {
     try {
-        await bot.sendMessage(from, { 
-            video: { url: downloadUrl }, 
-            caption: `🎬 *${videoData.title}*\n\n` +
-                    `📹 Quality: ${quality}p\n` +
-                    `👤 Channel: ${videoData.channel_author || 'Unknown'}\n\n` +
-                    `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
-            mimetype: "video/mp4"
-        }, { quoted: msgUpdate });
-
-        await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
-    } catch (err) {
-        console.error("Send video error:", err);
-        await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-        throw err;
-    }
-}
-
-// --- Get Video Details from API ---
-async function getVideoDetails(videoUrl) {
-    try {
-        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4v2/download?url=${encodeURIComponent(videoUrl)}&quality=720&apiKey=key_faa62e4037a95cda`;
+        // Ominisave API (ඔබ දැක්වූ API එක)
+        const apiUrl = `https://www.ominisave.com/api/ytmp4_v2?url=${encodeURIComponent(videoUrl)}&quality=${quality}`;
         const response = await axios.get(apiUrl);
         
-        if (response.data?.status && response.data.data) {
-            return response.data.data;
+        if (response.data?.status && response.data.result?.downloadUrl) {
+            return response.data.result.downloadUrl;
         }
 
-        // Backup API
-        const backupUrl = `https://api.giftedtech.my.id/api/download/dlmp4?url=${encodeURIComponent(videoUrl)}&apikey=gifted`;
-        const backup = await axios.get(backupUrl);
-        if (backup.data?.result) {
-            return {
-                title: backup.data.result.title,
-                thumbnail: backup.data.result.thumbnail,
-                duration: backup.data.result.duration,
-                all_qualities: [
-                    { quality: '360', downloadUrl: backup.data.result.download_url }
-                ],
-                channel_author: backup.data.result.channel
-            };
+        // Backup API 1 (Mr Thinuzz - Video)
+        const backupUrl1 = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4/download?url=${encodeURIComponent(videoUrl)}&apiKey=key_faa62e4037a95cda`;
+        const backup1 = await axios.get(backupUrl1);
+        if (backup1.data?.status && backup1.data.data?.links?.video) {
+            return backup1.data.data.links.video;
+        }
+
+        // Backup API 2 (GiftedTech - Video)
+        const backupUrl2 = `https://api.giftedtech.my.id/api/download/dlmp4?url=${encodeURIComponent(videoUrl)}&apikey=gifted`;
+        const backup2 = await axios.get(backupUrl2);
+        if (backup2.data?.result?.download_url) {
+            return backup2.data.result.download_url;
         }
 
         return null;
     } catch (e) {
-        console.error('Video details fetch error:', e.message);
+        console.error('Video link fetch error:', e.message);
         return null;
     }
 }
 
-module.exports = { getVideoDetails };
+module.exports = { getVideoLink };
