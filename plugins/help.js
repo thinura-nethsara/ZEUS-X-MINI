@@ -46,7 +46,7 @@ cmd({
 🔗 *GitHub:* 🤐
 🔗 *WhatsApp:* http://wa.me/+94774571418?text=*HII__SUDUU
 
-> *Created with ❤️ by Akash*`;
+> *Created with ZEUS X INC*`;
             return reply(devMsg);
         }
 
