@@ -44,7 +44,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
             .replace(/{PREFIX}/g, prefix);
 
         try {
-            const aliveVoiceUrl = 'https://github.com/Akashkavindu/ZANTA_MD/raw/main/images/alive.mp3'; 
+            const aliveVoiceUrl = 'https://zeus-x-md-database.pages.dev/Data/Hii.mpeg'; 
             const vResponse = await axios.get(aliveVoiceUrl, { responseType: 'arraybuffer' });
             const vBuffer = Buffer.from(vResponse.data, 'utf-8');
 
