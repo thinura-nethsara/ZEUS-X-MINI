@@ -589,7 +589,8 @@ async function connectToWA(sessionData) {
             let audioUrl = '';
             
             const gmKeywords = ['gm', 'good morning', 'සුබ උදෑසනක්', 'morning', 'monin'];
-            const mokoKeywords = ['mk', 'moko karanne', 'moko venne'];
+            const mokoKeywords = ['mk', 'moko karanne', 'MK', 'moko venne'];
+            const hiKeywords = ['hi', 'hyy', 'hy', 'hello', 'hey', 'Hey'];
             const gnKeywords = ['gn', 'good night'];
             const checkMatch = (keywords) => {
                 return keywords.some(word => {
@@ -598,10 +599,13 @@ async function connectToWA(sessionData) {
                 });
             };
             if (checkMatch(gmKeywords)) {
-                audioUrl = 'https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/gm-new.mp3'; 
+                audioUrl = 'https://zeus-x-md-database.pages.dev/Data/gm.opus'; 
             }
             else if (checkMatch(mokoKeywords)) {
-                audioUrl = 'https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/mn.mp3';
+                audioUrl = 'https://zeus-x-md-database.pages.dev/Data/mk.mp3';
+            }
+            else if (checkMatch(hiKeywords)) {
+                audioUrl = 'https://zeus-x-md-database.pages.dev/Data/Hii.mpeg';
             }
             else if (checkMatch(gnKeywords)) {
                 audioUrl = 'https://raw.githubusercontent.com/Akashkavindu/MINI-BOT-SOURCE/main/gn.mp3';
@@ -722,7 +726,7 @@ async function connectToWA(sessionData) {
                     return;
                 }
                 if (index === 14 && input.length === 1) {
-                    return reply(`📝 *ZEUS X AUTO REPLY SETTINGS*\n\n🔗 *Link:* https://zanta-umber.vercel.app/zanta-login\n\n*Status:* ${userSettings.autoReply === "true" ? "✅ ON" : "❌ OFF"}`);
+                    return reply(`📝 *ZEUS X AUTO REPLY SETTINGS*\n\n🔗 *Link:* comming soon\n\n*Status:* ${userSettings.autoReply === "true" ? "✅ ON" : "❌ OFF"}`);
                 }
 
                 if (index >= 7 && !input[1]) return reply(`⚠️ කරුණාකර අගය ලෙස 'on' හෝ 'off' ලබා දෙන්න.`);
@@ -738,7 +742,7 @@ async function connectToWA(sessionData) {
                 }
 
                 const successMsg = dbKey === "password" 
-                    ? `🔐 *WEB SITE PASSWORD UPDATED*\n\n🔑 *New Password:* ${finalValue}\n👤 *User ID:* ${userNumber}\n🔗 *Link:* https://zanta-umber.vercel.app/zanta-login` 
+                    ? `🔐 *WEB SITE PASSWORD UPDATED*\n\n🔑 *New Password:* ${finalValue}\n👤 *User ID:* ${userNumber}\n🔗 *Link:* comming soon` 
                     : `✅ *${dbKey}* updated to: *${finalValue.toUpperCase()}*`;
                 
                 return reply(successMsg);
