@@ -89,18 +89,18 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
             let displayTitle = selectedCategory.toUpperCase();
             let emoji = { main: '🏠', download: '📥', tools: '🛠', logo: '🎨', media: '🖼' }[selectedCategory.toLowerCase()] || '📌';
 
-            let commandList = `╭━━〔 ${emoji} ${displayTitle} 〕━━┈⊷\n`;
-            commandList += `┃ 📝 Category : ${displayTitle}\n┃ 📊 Available : ${groupedCommands[selectedCategory].length}\n╰━━━━━━━━━━━━━━┈⊷\n\n`;
+            let commandList = `╭━━〔 ${emoji} ${displayTitle} 〕───❥❥❥\n`;
+            commandList += `┃ 📝 Category : ${displayTitle}\n┃ 📊 Available : ${groupedCommands[selectedCategory].length}\n╰─────❥❥❥\n\n`;
 
             groupedCommands[selectedCategory].forEach((c) => {
-                commandList += `┃ ◈ ⚡ ${finalPrefix}${c.pattern}\n`;
+                commandList += `┃ ◉ ❯❯ ${finalPrefix}${c.pattern}\n`;
             });
-            commandList += `╰━━━━━━━━━━━━━━┈⊷\n\n> *© ${botName}*`;
+            commandList += `╰━━━━━━━━━━━━━━┈⊷\n\n> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_*`;
 
             return await zanta.sendMessage(from, { text: commandList, contextInfo }, { quoted: mek }); 
         }
 
-        let headerText = `╭━〔 ${botName} WA BOT 〕━··๏\n`;
+        let headerText = `╭━〔 ${botName} WA BOT 〕\n`;
         headerText += `┃ 👑 Owner : ${ownerName}\n┃ ⚙ Mode : ${mode}\n┃ 🔣 Prefix : ${finalPrefix}\n┃ 📚 Commands : ${commands.length}\n╰━━━━━━━━━━━━━━┈⊷\n\n`;
 
         // --- 🖼️ IMAGE LOGIC: DB Image එක ඇත්නම් එය පෙන්වයි, නැතිනම් Default Cache Image එක පෙන්වයි ---
@@ -115,7 +115,7 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
             return await zanta.sendMessage(from, {
                 image: imageToDisplay,
                 caption: headerText + "ꜱᴇʟᴇᴄᴛ 👇",
-                footer: `© ZEUS-X-MINI •`,
+                footer: `_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`,
                 buttons: [
                     { buttonId: "cat_main", buttonText: { displayText: "🏠 MAIN" }, type: 1 },
                     { buttonId: "cat_download", buttonText: { displayText: "📥 DOWNLOAD" }, type: 1 },
