@@ -24,7 +24,7 @@ cmd({
             ? { url: settings.botImage } 
             : { url: "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg" };
 
-        const loadingDesc = `╭━─━─━─━─━─━──━╮\n┃ *${currentBotName} FB Downloader*\n╰━─━─━─━─━─━──━╯\n\n⏳ *Waiting for download...*`;
+        const loadingDesc = `╭━─━─━─━─━─━─━━─━─━━─━──━╮\n┃ *${currentBotName} FB Downloader*\n╰━─━─━─━━─━─━━─━─━─━─━──━╯\n\n⏳ *Waiting for download...*`;
 
         // 1. මුලින්ම පින්තූරය සහ "Downloading" Caption එක සහිත පණිවිඩය යවයි
         const sentMsg = await zanta.sendMessage(from, {
