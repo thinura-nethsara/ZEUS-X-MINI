@@ -50,7 +50,7 @@ async (zanta, mek, m, { from, userSettings }) => {
         const latency = Date.now() - startTime;
 
         const statusMessage = `
-🚀 *${botName} SYSTEM INFO* 🚀
+ 📊 *${botName} SYSTEM INFO*
 
 *⚡ LATENCY:* ${latency} ms
 *🕒 UPTIME:* ${runtime(process.uptime())}
@@ -60,7 +60,7 @@ async (zanta, mek, m, { from, userSettings }) => {
 *┃ 📦 Heap Used:* ${bytesToSize(memoryUsage.heapUsed)}
 *┃ 🏛️ Platform:* ${os.platform()} (${os.arch()})
 
-> *© ${botName} STATUS REPORT*`.trim();
+> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`.trim();
 
         // --- 🖼️ IMAGE LOGIC: DB Image එක ඇත්නම් එය පෙන්වයි, නැතිනම් Default Cache Image එක පෙන්වයි ---
         let imageToDisplay;
