@@ -124,24 +124,46 @@ cmd(
             const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
             const startTime = Date.now();
 
-            // මුලින්ම පණිවිඩය යවයි
+            // Fake Meta Contact Object
+            const fgclink = {
+                key: {
+                    remoteJid: "status@broadcast",
+                    fromMe: false,
+                    id: 'FAKE_META_ID_001',
+                    participant: '13135550002@s.whatsapp.net'
+                },
+                message: {
+                    contactMessage: {
+                        displayName: '© ZEUS X MINI',
+                        vcard: `BEGIN:VCARD
+VERSION:3.0
+N:Alip;;;;
+FN:Alip
+TEL;waid=13135550002:+1 313 555 0002
+END:VCARD`
+                    }
+                }
+            };
+
+            // මුලින්ම පණිවිඩය යවයි (Fake Meta Quoted)
             const pinger = await zanta.sendMessage(
                 from,
                 { text: "🚀 *Checking...*" },
-                { quoted: mek },
+                { quoted: fgclink }, // 👈 Fake meta quoted එක භාවිතා කරමින්
             );
             const ping = Date.now() - startTime;
 
-            // Edit කරන මැසේජ් එකට Channel Context එක එකතු කිරීම
+            // Edit කරන මැසේජ් එකට Fake Meta Context එක එකතු කිරීම
             await zanta.sendMessage(from, {
                 text: `⚡ *${botName} SPEED*\n\n🚄 *Latency:* ${ping}ms\n📡 *Status:* Online\n\n> *© ${botName}*`,
                 edit: pinger.key,
                 contextInfo: {
                     forwardingScore: 999,
                     isForwarded: true,
+                    participant: fgclink.key.participant, // 👈 Fake meta participant
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: "120363425542933159@newsletter", // 👈 මෙතනට ඔයාගේ නිවැරදි Channel JID එක දාන්න
-                        newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", // 👈 මෙතනට චැනල් එකේ නම දාන්න
+                        newsletterJid: "120363425542933159@newsletter",
+                        newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰",
                         serverMessageId: 100,
                     },
                 },
