@@ -15,7 +15,7 @@ function getAliveMessage() {
 *📱 ɴᴜᴍʙᴇʀ: {OWNER_NUMBER}*
 *💬 ᴘʀᴇꜰɪx: {PREFIX}*
 *───────────────*
-*🌐 ᴄᴏɴᴛᴀᴄᴛ ᴢᴀɴᴛᴀ*
+*🌐 Contact US*
 > http://wa.me/+94774571418?text=*Hey__Suduu*
 
 > *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰*`;
