@@ -46,27 +46,28 @@ cmd({
             if (isReplyToBot && ['1', '2', '3'].includes(body)) {
                 await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
-                let quality = "360";
-                if (body === '1') quality = "360";
-                else if (body === '2') quality = "480";
-                else if (body === '3') quality = "720";
+                let quality = "360p";
+                if (body === '1') quality = "360p";
+                else if (body === '2') quality = "480p";
+                else if (body === '3') quality = "720p";
 
                 try {
-                    const apiUrl = `https://sai-green.vercel.app/manump4?url=${encodeURIComponent(video.url)}&quality=${quality}`;
+                    // අලුත් API එකට URL එක හදන විදිය
+                    const apiUrl = `https://www.ominisave.com/api/ytmp4_v2?url=${encodeURIComponent(video.url)}&quality=${quality}`;
+                    
                     const response = await axios.get(apiUrl);
                     
-                    // --- නිවැරදි කළ ලින්ක් එක ලබා ගන්නා පේළිය ---
-                    // API එකේ JSON structure එකට අනුව: download -> url
-                    const downloadUrl = response.data.download?.url;
+                    // අලුත් API response structure එකට අනුව downloadUrl ගන්නවා
+                    const downloadUrl = response.data.result?.downloadUrl;
 
                     if (!downloadUrl) {
-                        return reply(`❌ Error: ${quality}p quality link not found in API response!`);
+                        return reply(`❌ Error: ${quality} quality link not found in API response!`);
                     }
 
                     await bot.sendMessage(from, { 
                         video: { url: downloadUrl }, 
                         mimetype: "video/mp4",
-                        caption: `📝 ${video.title}\n✅ Quality: ${quality}p\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`
+                        caption: `📝 ${video.title}\n✅ Quality: ${quality}\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`
                     }, { quoted: msgUpdate });
 
                     await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
