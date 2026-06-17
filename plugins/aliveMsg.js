@@ -9,7 +9,6 @@ function getAliveMessage() {
 ✧ {BOT_NAME}✍️︎𝄞
 ╰────────────────❂
 
-*|💖 Hey...🤗 I'm,*
 *| your lovely assistant*
 *| Now alive and Ready To Help!*
 *╰◉◉◉────♡♡───────❥*
