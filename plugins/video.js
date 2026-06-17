@@ -2,6 +2,8 @@ const { cmd } = require("../command");
 const axios = require("axios");
 const yts = require("yt-search");
 const config = require("../config");
+const fs = require("fs");
+const path = require("path");
 
 cmd({
     pattern: "video",
@@ -21,10 +23,8 @@ cmd({
         const isYouTubeUrl = q.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
 
         if (isYouTubeUrl) {
-            // URL එක සෘජුවම API එකට යවන්න
             videoUrl = q;
         } else {
-            // සෙවුම් වචනයක් නම් yts වලින් සොයන්න
             const search = await yts(q);
             const video = search.videos[0];
             if (!video) return reply("❌ No results found on YouTube.");
@@ -56,9 +56,9 @@ cmd({
                   `🔗 *Link:* ${data.original_url || videoUrl}\n\n` +
                   `*Reply with a quality number:* \n\n` +
                   `${qualityOptions}\n\n` +
+                  `💡 *Tip:* Lower quality = Smaller file size\n` +
                   `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
 
-        // Thumbnail එකත් එක්ක send කරන්න
         const thumbnail = data.thumbnail || `https://i.ytimg.com/vi/${data.video_id}/hqdefault.jpg`;
         
         const sentMsg = await bot.sendMessage(from, { 
@@ -75,7 +75,6 @@ cmd({
 
             const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
 
-            // Check if user replied with a number and it's valid
             if (isReplyToBot && ['1', '2', '3', '4'].includes(body)) {
                 await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
@@ -90,23 +89,66 @@ cmd({
                 const quality = selectedQuality.quality;
 
                 try {
+                    // Video එක ඩවුන්ලෝඩ් කරන්න
+                    const videoResponse = await axios({
+                        method: 'get',
+                        url: downloadUrl,
+                        responseType: 'stream',
+                        timeout: 60000 // 60 seconds timeout
+                    });
+
+                    // Temp file path එක හදන්න
+                    const tempFilePath = path.join(__dirname, '../temp', `${Date.now()}_${quality}p.mp4`);
+                    
+                    // Temp folder එක exist කරන්නේ නැත්නම් හදන්න
+                    if (!fs.existsSync(path.join(__dirname, '../temp'))) {
+                        fs.mkdirSync(path.join(__dirname, '../temp'), { recursive: true });
+                    }
+
+                    // Video එක save කරන්න
+                    const writer = fs.createWriteStream(tempFilePath);
+                    videoResponse.data.pipe(writer);
+
+                    await new Promise((resolve, reject) => {
+                        writer.on('finish', resolve);
+                        writer.on('error', reject);
+                    });
+
+                    // File size check කරන්න (WhatsApp limit 16MB)
+                    const stats = fs.statSync(tempFilePath);
+                    const fileSizeInMB = stats.size / (1024 * 1024);
+
                     let caption = `📝 *${data.title || 'Video'}*\n`;
                     caption += `✅ *Quality:* ${quality}p\n`;
-                    caption += `👤 *Channel:* ${data.channel_author || 'N/A'}\n`;
-                    caption += `⏱️ *Duration:* ${data.duration || 'N/A'}\n\n`;
+                    caption += `📦 *File Size:* ${fileSizeInMB.toFixed(2)} MB\n`;
+                    caption += `👤 *Channel:* ${data.channel_author || 'N/A'}\n\n`;
                     caption += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
 
-                    await bot.sendMessage(from, { 
-                        video: { url: downloadUrl }, 
-                        mimetype: "video/mp4",
-                        caption: caption
-                    }, { quoted: msgUpdate });
+                    // File size එක 16MB ට වඩා වැඩි නම් document එකක් ලෙස යවන්න
+                    if (fileSizeInMB > 16) {
+                        await bot.sendMessage(from, {
+                            document: fs.readFileSync(tempFilePath),
+                            mimetype: 'video/mp4',
+                            fileName: `${data.title || 'video'}_${quality}p.mp4`,
+                            caption: `📁 *File too large for video upload*\n\n${caption}`
+                        }, { quoted: msgUpdate });
+                    } else {
+                        // Normal video එකක් ලෙස යවන්න
+                        await bot.sendMessage(from, {
+                            video: fs.readFileSync(tempFilePath),
+                            mimetype: "video/mp4",
+                            caption: caption
+                        }, { quoted: msgUpdate });
+                    }
+
+                    // Temp file එක මකන්න
+                    fs.unlinkSync(tempFilePath);
 
                     await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
 
                 } catch (err) {
                     console.error("Download Error:", err.message);
-                    reply("❌ වීඩියෝව ලබා ගැනීමේදී දෝෂයක් සිදු විය.\n" + err.message);
+                    reply(`❌ වීඩියෝව ලබා ගැනීමේදී දෝෂයක් සිදු විය.\n\n*Error:* ${err.message}\n\n*Try lower quality or try again later.*`);
                 }
 
                 bot.ev.off('messages.upsert', listener);
