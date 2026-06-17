@@ -20,7 +20,7 @@ function getAliveMessage() {
 ┃ *💬 ᴘʀᴇꜰɪx: {PREFIX}*
 ┗━━━━━━━━━━━━━◉◉◉
 
-> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰*`;
+> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_*`;
 }
 
 module.exports = { getAliveMessage };
