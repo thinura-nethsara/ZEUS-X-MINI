@@ -239,7 +239,7 @@ cmd({
                         try {
                             let mediaUrl = null;
                             let mediaType = 'video';
-                            let caption = `🎵 *${data.title || 'TikTok Video'}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName.toUpperCase()} </>`;
+                            let caption = `🎵 *${data.title || 'TikTok Video'}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
 
                             // Map selection to media
                             let currentIndex = 1;
