@@ -35,7 +35,6 @@ cmd({
             const sentMsg = await bot.sendMessage(from, {
                 image: { url: video.thumbnail },
                 caption: msg,
-                footer: `_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
                 buttons: [
                     { buttonId: "audio_file", buttonText: { displayText: "🎵 Audio File" }, type: 1 },
                     { buttonId: "document_file", buttonText: { displayText: "📄 Document File" }, type: 1 }
@@ -43,47 +42,81 @@ cmd({
                 headerType: 4
             }, { quoted: mek });
 
-            // Button Response Listener
+            // 🟢 BUTTON LISTENER - FIXED VERSION
             const buttonListener = async (update) => {
-                const msgUpdate = update.messages[0];
-                if (!msgUpdate.message) return;
+                try {
+                    const msgUpdate = update.messages[0];
+                    if (!msgUpdate || !msgUpdate.message) return;
 
-                const selectedButton = msgUpdate.message.buttonsResponseMessage?.selectedButtonId;
-                const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
-
-                if (isReplyToBot && (selectedButton === 'audio_file' || selectedButton === 'document_file')) {
-                    await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
-
-                    try {
-                        const finalLink = await getDownloadLink(video.url);
-                        if (!finalLink) return reply("❌ Download link not found.");
-
-                        if (selectedButton === 'audio_file') {
-                            await bot.sendMessage(from, { 
-                                audio: { url: finalLink }, 
-                                mimetype: "audio/mpeg", 
-                                ptt: false 
-                            }, { quoted: msgUpdate });
-                        } else if (selectedButton === 'document_file') {
-                            await bot.sendMessage(from, { 
-                                document: { url: finalLink }, 
-                                mimetype: "audio/mpeg", 
-                                fileName: `${video.title}.mp3`,
-                                caption: `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `
-                            }, { quoted: msgUpdate });
-                        }
-
-                        await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
-                    } catch (err) {
-                        console.error(err);
-                        reply("❌ Error downloading audio.");
+                    // Get the button ID correctly
+                    let selectedButton = null;
+                    
+                    // Check for buttonsResponseMessage
+                    if (msgUpdate.message.buttonsResponseMessage) {
+                        selectedButton = msgUpdate.message.buttonsResponseMessage.selectedButtonId;
+                    }
+                    // Check for templateButtonReplyMessage
+                    else if (msgUpdate.message.templateButtonReplyMessage) {
+                        selectedButton = msgUpdate.message.templateButtonReplyMessage.selectedId;
+                    }
+                    // Check for interactiveResponseMessage
+                    else if (msgUpdate.message.interactiveResponseMessage) {
+                        selectedButton = msgUpdate.message.interactiveResponseMessage.nativeFlowResponseMessage?.buttonsMessage?.selectedButtonId;
                     }
 
-                    bot.ev.off('messages.upsert', buttonListener);
+                    // Check if this is a reply to our message
+                    const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo || 
+                                      msgUpdate.message.buttonsResponseMessage?.contextInfo ||
+                                      msgUpdate.message.templateButtonReplyMessage?.contextInfo;
+
+                    const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
+
+                    console.log("Button clicked:", selectedButton, "IsReply:", isReplyToBot);
+
+                    if (isReplyToBot && (selectedButton === 'audio_file' || selectedButton === 'document_file')) {
+                        // Remove listener immediately to prevent duplicate processing
+                        bot.ev.off('messages.upsert', buttonListener);
+
+                        await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+
+                        try {
+                            const finalLink = await getDownloadLink(video.url);
+                            if (!finalLink) {
+                                await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                                return reply("❌ Download link not found.");
+                            }
+
+                            if (selectedButton === 'audio_file') {
+                                await bot.sendMessage(from, { 
+                                    audio: { url: finalLink }, 
+                                    mimetype: "audio/mpeg", 
+                                    ptt: false 
+                                }, { quoted: msgUpdate });
+                            } else if (selectedButton === 'document_file') {
+                                await bot.sendMessage(from, { 
+                                    document: { url: finalLink }, 
+                                    mimetype: "audio/mpeg", 
+                                    fileName: `${video.title}.mp3`,
+                                    caption: `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `
+                                }, { quoted: msgUpdate });
+                            }
+
+                            await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                        } catch (err) {
+                            console.error("Download Error:", err);
+                            await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                            reply("❌ Error downloading audio.");
+                        }
+                    }
+                } catch (err) {
+                    console.error("Listener Error:", err);
                 }
             };
 
+            // Register listener
             bot.ev.on('messages.upsert', buttonListener);
+            
+            // Auto cleanup after 5 minutes
             setTimeout(() => {
                 bot.ev.off('messages.upsert', buttonListener);
             }, 300000);
@@ -104,44 +137,54 @@ cmd({
 
         // Text Reply Listener
         const listener = async (update) => {
-            const msgUpdate = update.messages[0];
-            if (!msgUpdate.message) return;
+            try {
+                const msgUpdate = update.messages[0];
+                if (!msgUpdate || !msgUpdate.message) return;
 
-            const body = msgUpdate.message.conversation || 
-                         msgUpdate.message.extendedTextMessage?.text || 
-                         msgUpdate.message.buttonsResponseMessage?.selectedButtonId;
+                const body = msgUpdate.message.conversation || 
+                           msgUpdate.message.extendedTextMessage?.text;
 
-            const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
+                const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
+                const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
 
-            if (isReplyToBot && (body === '1' || body === '2')) {
-                await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+                console.log("Text reply:", body, "IsReply:", isReplyToBot);
 
-                try {
-                    const finalLink = await getDownloadLink(video.url);
-                    if (!finalLink) return reply("❌ Download link not found.");
+                if (isReplyToBot && (body === '1' || body === '2')) {
+                    bot.ev.off('messages.upsert', listener);
 
-                    if (body === '1') {
-                        await bot.sendMessage(from, { 
-                            audio: { url: finalLink }, 
-                            mimetype: "audio/mpeg", 
-                            ptt: false 
-                        }, { quoted: msgUpdate });
-                    } else if (body === '2') {
-                        await bot.sendMessage(from, { 
-                            document: { url: finalLink }, 
-                            mimetype: "audio/mpeg", 
-                            fileName: `${video.title}.mp3`,
-                            caption: `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `
-                        }, { quoted: msgUpdate });
+                    await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+
+                    try {
+                        const finalLink = await getDownloadLink(video.url);
+                        if (!finalLink) {
+                            await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                            return reply("❌ Download link not found.");
+                        }
+
+                        if (body === '1') {
+                            await bot.sendMessage(from, { 
+                                audio: { url: finalLink }, 
+                                mimetype: "audio/mpeg", 
+                                ptt: false 
+                            }, { quoted: msgUpdate });
+                        } else if (body === '2') {
+                            await bot.sendMessage(from, { 
+                                document: { url: finalLink }, 
+                                mimetype: "audio/mpeg", 
+                                fileName: `${video.title}.mp3`,
+                                caption: `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `
+                            }, { quoted: msgUpdate });
+                        }
+
+                        await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                    } catch (err) {
+                        console.error("Download Error:", err);
+                        await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                        reply("❌ Error downloading audio.");
                     }
-
-                    await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
-                } catch (err) {
-                    console.error(err);
-                    reply("❌ Error downloading audio.");
                 }
-
-                bot.ev.off('messages.upsert', listener);
+            } catch (err) {
+                console.error("Listener Error:", err);
             }
         };
 
