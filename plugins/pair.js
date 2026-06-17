@@ -1,7 +1,7 @@
 const { cmd } = require("../command");
 const axios = require("axios");
 
-const CHANNEL_JID = "120363404252774256@newsletter";
+const CHANNEL_JID = "120363425542933159@newsletter";
 const cooldowns = new Map();
 const PAIR_IMAGE = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
 
@@ -29,7 +29,7 @@ cmd({
         cooldowns.set(phoneNumber, Date.now());
         setTimeout(() => cooldowns.delete(phoneNumber), 40000); 
 
-        const pairUrl = `https://zanta-mini-pair.onrender.com/code?number=${phoneNumber}`;
+        const pairUrl = `https://zeus-x-mini-pair-production.up.railway.app/code?number=${phoneNumber}`;
         const response = await axios.get(pairUrl, { timeout: 30000 });
 
         if (response.data && response.data.code) {
