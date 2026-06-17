@@ -1,66 +1,189 @@
 const { cmd } = require("../command");
-const getFbVideoInfo = require("@xaviabot/fb-downloader");
+const axios = require("axios");
 const config = require("../config");
 
 cmd({
     pattern: "fb",
-    alias: ["facebook"],
-    react: "📥",
-    desc: "Download Facebook Videos.",
+    alias: ["facebook", "fbdl", "fbdown"],
+    react: "📱",
+    desc: "Download Facebook videos with selection menu",
     category: "download",
     filename: __filename,
-}, async (zanta, mek, m, { from, reply, q, userSettings }) => {
+}, async (bot, mek, m, { from, q, reply, prefix, userSettings }) => {
     try {
-        if (!q) return reply("❤️ *කරුණාකර Facebook වීඩියෝ ලින්ක් එකක් ලබා දෙන්න.*");
+        if (!q) return reply("📱 *ZEUS X FACEBOOK DOWNLOADER*\n\nExample: .fb https://www.facebook.com/share/v/xxxxx");
 
-        const fbRegex = /(https?:\/\/)?(www\.)?(facebook|fb)\.com\/.+/;
-        if (!fbRegex.test(q)) return reply("☹️ *ලින්ක් එක වැරදියි.*");
-
-        const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
-        const currentBotName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
-
-        // --- 🖼️ IMAGE LOGIC: DB එකේ පින්තූරයක් ඇත්නම් එය පෙන්වයි ---
-        const displayImg = (settings.botImage && settings.botImage !== "null") 
-            ? { url: settings.botImage } 
-            : { url: "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg" };
-
-        const loadingDesc = `╭━─━─━─━─━─━─━━─━────━╮\n┃ *${currentBotName} FB Downloader*\n╰━─━─━─━━─━━─━─━─━───━╯\n\n⏳ *Waiting for download...*`;
-
-        // 1. මුලින්ම පින්තූරය සහ "Downloading" Caption එක සහිත පණිවිඩය යවයි
-        const sentMsg = await zanta.sendMessage(from, {
-            image: displayImg,
-            caption: loadingDesc,
-        }, { quoted: mek });
-
-        const result = await getFbVideoInfo(q);
-
-        if (!result || (!result.sd && !result.hd)) {
-            // අසාර්ථක වුවහොත් පණිවිඩය Edit කරයි
-            return await zanta.sendMessage(from, { 
-                text: "☹️ *Failed to download video. Please check the link.*", 
-                edit: sentMsg.key 
-            });
+        // Validate Facebook URL
+        if (!q.includes('facebook.com') && !q.includes('fb.watch')) {
+            return reply("❌ *Invalid URL*\n\nPlease provide a valid Facebook video URL");
         }
 
-        const bestUrl = result.hd || result.sd;
-        const quality = result.hd ? "HD" : "SD";
+        const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
+        const isButtonsOn = settings.buttons === 'true';
+        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
-        // 2. බාගත කිරීම අවසන් වූ පසු Caption එක Edit කිරීම
-        const successDesc = `╭━─━─━─━─━─━──━╮\n┃ *${currentBotName} FB Downloader*\n╰━─━─━─━─━─━──━╯\n\n✅ *Status:* Download Completed!\n👻 *Quality:* ${quality}`;
+        // Send loading reaction
+        await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
 
-        await zanta.sendMessage(from, { 
-            text: successDesc, 
-            edit: sentMsg.key 
-        });
+        // Fetch video data
+        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/fbdown/download?url=${encodeURIComponent(q)}&apiKey=key_faa62e4037a95cda`;
+        const response = await axios.get(apiUrl);
 
-        // 3. වීඩියෝව යැවීම
-        await zanta.sendMessage(from, {
-            video: { url: bestUrl },
-            caption: `*📥 Quality: ${quality}*\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐍𝐄𝐗𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰`,
+        if (!response.data?.status || !response.data?.data?.links) {
+            return reply("❌ Failed to fetch video. Please check the URL and try again.");
+        }
+
+        const data = response.data.data;
+        const videoTitle = data.title || "Facebook Video";
+        const thumbnail = data.thumbnail;
+        const duration = data.duration || "Unknown";
+        const quality = data.quality_found || "HD";
+        const hdLink = data.links.hd;
+        const sdLink = data.links.sd;
+
+        let msg = `📱 *ZEUS X FB DOWNLOADER* 📱\n\n` +
+                  `📝 *Title:* ${videoTitle}\n` +
+                  `⏱️ *Duration:* ${duration}\n` +
+                  `📊 *Quality:* ${quality}\n` +
+                  `🔗 *Link:* ${q}\n\n`;
+
+        // --- BUTTON MODE ---
+        if (isButtonsOn) {
+            msg += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
+
+            const sentMsg = await bot.sendMessage(from, {
+                image: { url: thumbnail },
+                caption: msg,
+                buttons: [
+                    { buttonId: "hd_video", buttonText: { displayText: "🎬 HD Video" }, type: 1 },
+                    { buttonId: "sd_video", buttonText: { displayText: "📹 SD Video" }, type: 1 }
+                ],
+                headerType: 4
+            }, { quoted: mek });
+
+            // 🟢 BUTTON LISTENER
+            const buttonListener = async (update) => {
+                try {
+                    const msgUpdate = update.messages[0];
+                    if (!msgUpdate || !msgUpdate.message) return;
+
+                    let selectedButton = null;
+                    
+                    if (msgUpdate.message.buttonsResponseMessage) {
+                        selectedButton = msgUpdate.message.buttonsResponseMessage.selectedButtonId;
+                    } else if (msgUpdate.message.templateButtonReplyMessage) {
+                        selectedButton = msgUpdate.message.templateButtonReplyMessage.selectedId;
+                    } else if (msgUpdate.message.interactiveResponseMessage) {
+                        selectedButton = msgUpdate.message.interactiveResponseMessage.nativeFlowResponseMessage?.buttonsMessage?.selectedButtonId;
+                    }
+
+                    const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo || 
+                                      msgUpdate.message.buttonsResponseMessage?.contextInfo ||
+                                      msgUpdate.message.templateButtonReplyMessage?.contextInfo;
+
+                    const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
+
+                    if (isReplyToBot && (selectedButton === 'hd_video' || selectedButton === 'sd_video')) {
+                        bot.ev.off('messages.upsert', buttonListener);
+
+                        await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+
+                        try {
+                            const videoUrl = selectedButton === 'hd_video' ? hdLink : sdLink;
+                            if (!videoUrl) {
+                                await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                                return reply(`❌ ${selectedButton === 'hd_video' ? 'HD' : 'SD'} video link not found.`);
+                            }
+
+                            // Send video
+                            await bot.sendMessage(from, {
+                                video: { url: videoUrl },
+                                caption: `📱 *${videoTitle}*\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                                mimetype: "video/mp4"
+                            }, { quoted: msgUpdate });
+
+                            await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                        } catch (err) {
+                            console.error("Download Error:", err);
+                            await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                            reply("❌ Error downloading video.");
+                        }
+                    }
+                } catch (err) {
+                    console.error("Listener Error:", err);
+                }
+            };
+
+            bot.ev.on('messages.upsert', buttonListener);
+            setTimeout(() => {
+                bot.ev.off('messages.upsert', buttonListener);
+            }, 300000);
+
+            return;
+        }
+
+        // --- TEXT MODE (Default) ---
+        msg += `*Reply with a number:* \n\n` +
+               `1️⃣ *HD Video* (${quality})\n` +
+               `2️⃣ *SD Video* (360p)\n\n` +
+               `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
+
+        const sentMsg = await bot.sendMessage(from, {
+            image: { url: thumbnail },
+            caption: msg
         }, { quoted: mek });
 
+        // Text Reply Listener
+        const listener = async (update) => {
+            try {
+                const msgUpdate = update.messages[0];
+                if (!msgUpdate || !msgUpdate.message) return;
+
+                const body = msgUpdate.message.conversation || 
+                           msgUpdate.message.extendedTextMessage?.text;
+
+                const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
+                const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
+
+                if (isReplyToBot && (body === '1' || body === '2')) {
+                    bot.ev.off('messages.upsert', listener);
+
+                    await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+
+                    try {
+                        const videoUrl = body === '1' ? hdLink : sdLink;
+                        if (!videoUrl) {
+                            await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                            return reply(`❌ ${body === '1' ? 'HD' : 'SD'} video link not found.`);
+                        }
+
+                        await bot.sendMessage(from, {
+                            video: { url: videoUrl },
+                            caption: `📱 *${videoTitle}*\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`,
+                            mimetype: "video/mp4"
+                        }, { quoted: msgUpdate });
+
+                        await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                    } catch (err) {
+                        console.error("Download Error:", err);
+                        await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                        reply("❌ Error downloading video.");
+                    }
+                }
+            } catch (err) {
+                console.error("Listener Error:", err);
+            }
+        };
+
+        bot.ev.on('messages.upsert', listener);
+        setTimeout(() => {
+            bot.ev.off('messages.upsert', listener);
+        }, 300000);
+
     } catch (e) {
-        console.error(e);
-        reply(`❌ *Error:* ${e.message}`);
+        console.log("FB ERROR:", e);
+        reply("❌ *Error:* " + e.message);
     }
 });
+
+module.exports = {};
