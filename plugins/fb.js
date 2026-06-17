@@ -56,7 +56,7 @@ cmd({
         // 3. වීඩියෝව යැවීම
         await zanta.sendMessage(from, {
             video: { url: bestUrl },
-            caption: `*📥 Quality: ${quality}*\n\n> *© ${currentBotName}*`,
+            caption: `*📥 Quality: ${quality}*\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐍𝐄𝐗𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰`,
         }, { quoted: mek });
 
     } catch (e) {
