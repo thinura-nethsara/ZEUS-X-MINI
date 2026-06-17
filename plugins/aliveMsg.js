@@ -9,17 +9,16 @@ function getAliveMessage() {
 ✧ {BOT_NAME}✍️︎𝄞
 ╰────────────────❂
 
-*╭◉◉◉────♡♡───❥❥❥*
-💖 *Hey...I’m {BOT_NAME}🤗, your lovely assistant — Now alive and Ready To Help!*
-*╰◉◉◉────♡♡───❥❥❥*
-
+*|💖 Hey...🤗 I'm,*
+*| your lovely assistant*
+*| Now alive and Ready To Help!*
+*╰◉◉◉────♡♡───────❥*
 
 ┏━「 INFORMATION 」
 ┃ *📅 ᴅᴀᴛᴇ: ${date}*
 ┃ *⌚ ᴛɪᴍᴇ: ${time}*
 ┃ *💬 ᴘʀᴇꜰɪx: {PREFIX}*
 ┗━━━━━━━━━━━━━◉◉◉
-
 
 > *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰*`;
 }
