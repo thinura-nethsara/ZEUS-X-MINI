@@ -22,7 +22,7 @@ cmd({
         "94774571418", 
         "94743404814", 
         "94766247995", 
-        "192063001874499", 
+        "122286761861330", 
         "270819766866076"
     ];
 
@@ -58,7 +58,7 @@ cmd({
     const isSecurityOn = settings.badWords === "true" || settings.antiLink === "true" || settings.antiCmd === "true" || settings.antiBot === "true";
     const securityStatus = isSecurityOn ? '『 ✅ ON 』' : '『 ❌ OFF 』';
 
-    let statusText = `⚡ *${botName.toUpperCase()} PREMIUM DASHBOARD* ⚡\n\n`;
+    let statusText = `⚡ *${botName.toUpperCase()} SYSTEM DASHBOARD* ⚡\n\n`;
 
     statusText += `*—「 BASIC CONFIGS 」—*\n\n`;
     statusText += `01. 🤖 *Bot Name:* ${botName}\n`;
