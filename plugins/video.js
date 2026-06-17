@@ -2,8 +2,6 @@ const { cmd } = require("../command");
 const axios = require("axios");
 const yts = require("yt-search");
 const config = require("../config");
-const fs = require("fs");
-const path = require("path");
 
 cmd({
     pattern: "video",
@@ -14,55 +12,86 @@ cmd({
     filename: __filename,
 }, async (bot, mek, m, { from, q, reply, prefix }) => {
     try {
-        if (!q) return reply("🎥 *ZEUS X VIDEO PLAYER*\n\nExample: .video alone\n\nOr: .video https://youtube.com/watch?v=xxx");
+        if (!q) return reply("🎥 *ZEUS X VIDEO PLAYER*\n\nExample: .video alone");
 
+        // Check if it's a YouTube URL
+        const isYouTubeUrl = q.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
         let videoUrl = q;
         let videoInfo = null;
 
-        // යූටියුබ් URL එකක්දැයි පරීක්ෂා කරන්න
-        const isYouTubeUrl = q.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
-
-        if (isYouTubeUrl) {
-            videoUrl = q;
-        } else {
+        if (!isYouTubeUrl) {
+            // Search using yts
             const search = await yts(q);
             const video = search.videos[0];
             if (!video) return reply("❌ No results found on YouTube.");
-            videoUrl = video.url;
             videoInfo = video;
+            videoUrl = video.url;
+        } else {
+            // Get video info from API directly
+            const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4v2/download?url=${encodeURIComponent(q)}&quality=720&apiKey=key_faa62e4037a95cda`;
+            const response = await axios.get(apiUrl);
+            if (response.data && response.data.status && response.data.data) {
+                const data = response.data.data;
+                videoInfo = {
+                    title: data.title || 'N/A',
+                    author: { name: data.channel_author || 'N/A' },
+                    timestamp: data.duration || 'N/A',
+                    url: data.original_url || q,
+                    thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${data.video_id}/hqdefault.jpg`
+                };
+            }
         }
 
-        // API URL එක සාදන්න
-        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4v2/download?url=${encodeURIComponent(videoUrl)}&quality=720&apiKey=key_faa62e4037a95cda`;
+        if (!videoInfo) return reply("❌ No results found on YouTube.");
 
-        // මුලින්ම API එකෙන් වීඩියෝ තොරතුරු ලබා ගන්න
-        const initialResponse = await axios.get(apiUrl);
-        const data = initialResponse.data.data;
-
-        if (!data || !data.all_qualities || data.all_qualities.length === 0) {
-            return reply("❌ වීඩියෝව සොයා ගැනීමට නොහැකි විය.");
+        // Get available qualities from API
+        let qualityOptions = [];
+        let allQualities = [];
+        
+        try {
+            const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4v2/download?url=${encodeURIComponent(videoUrl)}&quality=720&apiKey=key_faa62e4037a95cda`;
+            const response = await axios.get(apiUrl);
+            if (response.data && response.data.status && response.data.data) {
+                allQualities = response.data.data.all_qualities || [];
+                // Update video info with more details
+                if (response.data.data.title) videoInfo.title = response.data.data.title;
+                if (response.data.data.channel_author) videoInfo.author.name = response.data.data.channel_author;
+                if (response.data.data.duration) videoInfo.timestamp = response.data.data.duration;
+                if (response.data.data.thumbnail) videoInfo.thumbnail = response.data.data.thumbnail;
+            }
+        } catch (e) {
+            console.log("Error fetching qualities:", e);
         }
 
-        // Quality options සාදන්න
-        const qualityOptions = data.all_qualities.map((q, index) => {
-            const emoji = index === 0 ? '1️⃣' : index === 1 ? '2️⃣' : index === 2 ? '3️⃣' : '4️⃣';
-            return `${emoji} *${q.quality}p*`;
-        }).join('\n');
+        // Build quality options message
+        let qualityMsg = '';
+        if (allQualities.length > 0) {
+            const qualityMap = {
+                '1️⃣': 0,
+                '2️⃣': 1,
+                '3️⃣': 2,
+                '4️⃣': 3,
+                '5️⃣': 4
+            };
+            qualityMsg = allQualities.map((q, index) => {
+                const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+                return `${emojis[index] || '🔹'} *${q.quality}p*`;
+            }).join('\n');
+        } else {
+            qualityMsg = `1️⃣ *360p* (Low Quality)\n2️⃣ *720p* (HD Quality)\n3️⃣ *1080p* (Full HD Quality)`;
+        }
 
         let msg = `🎥 *ZEUS X VIDEO PLAYER* 🎥\n\n` +
-                  `📝 *Title:* ${data.title || 'N/A'}\n` +
-                  `👤 *Channel:* ${data.channel_author || 'N/A'}\n` +
-                  `⏱️ *Duration:* ${data.duration || 'N/A'}\n` +
-                  `🔗 *Link:* ${data.original_url || videoUrl}\n\n` +
+                  `📝 *Title:* ${videoInfo.title}\n` +
+                  `👤 *Channel:* ${videoInfo.author.name}\n` +
+                  `⏱️ *Duration:* ${videoInfo.timestamp}\n` +
+                  `🔗 *Link:* ${videoInfo.url}\n\n` +
                   `*Reply with a quality number:* \n\n` +
-                  `${qualityOptions}\n\n` +
-                  `💡 *Tip:* Lower quality = Smaller file size\n` +
+                  `${qualityMsg}\n\n` +
                   `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
 
-        const thumbnail = data.thumbnail || `https://i.ytimg.com/vi/${data.video_id}/hqdefault.jpg`;
-        
         const sentMsg = await bot.sendMessage(from, { 
-            image: { url: thumbnail }, 
+            image: { url: videoInfo.thumbnail }, 
             caption: msg 
         }, { quoted: mek });
 
@@ -75,80 +104,58 @@ cmd({
 
             const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
 
-            if (isReplyToBot && ['1', '2', '3', '4'].includes(body)) {
+            if (isReplyToBot && ['1', '2', '3', '4', '5'].includes(body)) {
                 await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
-                const selectedIndex = parseInt(body) - 1;
-                
-                if (selectedIndex >= data.all_qualities.length) {
-                    return reply("❌ Invalid quality selection!");
-                }
-
-                const selectedQuality = data.all_qualities[selectedIndex];
-                const downloadUrl = selectedQuality.downloadUrl;
-                const quality = selectedQuality.quality;
+                let quality = "720";
+                let selectedIndex = parseInt(body) - 1;
 
                 try {
-                    // Video එක ඩවුන්ලෝඩ් කරන්න
-                    const videoResponse = await axios({
-                        method: 'get',
-                        url: downloadUrl,
-                        responseType: 'stream',
-                        timeout: 60000 // 60 seconds timeout
-                    });
+                    let downloadUrl = null;
+                    let videoTitle = videoInfo.title;
+                    let qualityFound = "720p";
 
-                    // Temp file path එක හදන්න
-                    const tempFilePath = path.join(__dirname, '../temp', `${Date.now()}_${quality}p.mp4`);
-                    
-                    // Temp folder එක exist කරන්නේ නැත්නම් හදන්න
-                    if (!fs.existsSync(path.join(__dirname, '../temp'))) {
-                        fs.mkdirSync(path.join(__dirname, '../temp'), { recursive: true });
-                    }
-
-                    // Video එක save කරන්න
-                    const writer = fs.createWriteStream(tempFilePath);
-                    videoResponse.data.pipe(writer);
-
-                    await new Promise((resolve, reject) => {
-                        writer.on('finish', resolve);
-                        writer.on('error', reject);
-                    });
-
-                    // File size check කරන්න (WhatsApp limit 16MB)
-                    const stats = fs.statSync(tempFilePath);
-                    const fileSizeInMB = stats.size / (1024 * 1024);
-
-                    let caption = `📝 *${data.title || 'Video'}*\n`;
-                    caption += `✅ *Quality:* ${quality}p\n`;
-                    caption += `📦 *File Size:* ${fileSizeInMB.toFixed(2)} MB\n`;
-                    caption += `👤 *Channel:* ${data.channel_author || 'N/A'}\n\n`;
-                    caption += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
-
-                    // File size එක 16MB ට වඩා වැඩි නම් document එකක් ලෙස යවන්න
-                    if (fileSizeInMB > 16) {
-                        await bot.sendMessage(from, {
-                            document: fs.readFileSync(tempFilePath),
-                            mimetype: 'video/mp4',
-                            fileName: `${data.title || 'video'}_${quality}p.mp4`,
-                            caption: `📁 *File too large for video upload*\n\n${caption}`
-                        }, { quoted: msgUpdate });
+                    // Try to get from allQualities first
+                    if (allQualities.length > 0 && allQualities[selectedIndex]) {
+                        const selected = allQualities[selectedIndex];
+                        downloadUrl = selected.downloadUrl;
+                        qualityFound = selected.quality + 'p';
                     } else {
-                        // Normal video එකක් ලෙස යවන්න
-                        await bot.sendMessage(from, {
-                            video: fs.readFileSync(tempFilePath),
-                            mimetype: "video/mp4",
-                            caption: caption
-                        }, { quoted: msgUpdate });
+                        // Fallback qualities
+                        const fallbackQualities = ['360', '480', '720', '1080', '144'];
+                        if (selectedIndex < fallbackQualities.length) {
+                            quality = fallbackQualities[selectedIndex];
+                        } else {
+                            quality = '720';
+                        }
+
+                        // Fetch from API with selected quality
+                        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4v2/download?url=${encodeURIComponent(videoInfo.url)}&quality=${quality}&apiKey=key_faa62e4037a95cda`;
+                        const response = await axios.get(apiUrl);
+                        
+                        if (response.data && response.data.status && response.data.data) {
+                            const data = response.data.data;
+                            downloadUrl = data.links?.video || null;
+                            qualityFound = data.quality_found || quality + 'p';
+                            if (data.title) videoTitle = data.title;
+                        }
                     }
 
-                    // Temp file එක මකන්න
-                    fs.unlinkSync(tempFilePath);
+                    if (!downloadUrl) {
+                        return reply(`❌ Error: ${qualityFound} quality link not found in API response!`);
+                    }
+
+                    await bot.sendMessage(from, { 
+                        video: { url: downloadUrl }, 
+                        mimetype: "video/mp4",
+                        caption: `📝 ${videoTitle}\n✅ Quality: ${qualityFound}\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`
+                    }, { quoted: msgUpdate });
 
                     await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
 
                 } catch (err) {
-                    console.error("Download Error:", err.message);
-                    reply(`❌ වීඩියෝව ලබා ගැනීමේදී දෝෂයක් සිදු විය.\n\n*Error:* ${err.message}\n\n*Try lower quality or try again later.*`);
+                    console.error(err);
+                    reply("❌ වීඩියෝව ලබා ගැනීමේදී දෝෂයක් සිදු විය.\n" + err.message);
                 }
 
                 bot.ev.off('messages.upsert', listener);
