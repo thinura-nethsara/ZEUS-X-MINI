@@ -10,9 +10,13 @@ cmd({
     desc: "Download YouTube MP3 with selection menu",
     category: "download",
     filename: __filename,
-}, async (bot, mek, m, { from, q, reply, prefix }) => {
+}, async (bot, mek, m, { from, q, reply, prefix, userSettings }) => {
     try {
         if (!q) return reply("🎧 *ZEUS X AUDIO PLAYER*\n\nExample: .song alone");
+
+        const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
+        const isButtonsOn = settings.buttons === 'true';
+        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
         const search = await yts(q);
         const video = search.videos[0];
@@ -22,18 +26,83 @@ cmd({
                   `📝 *Title:* ${video.title}\n` +
                   `👤 *Artist:* ${video.author.name}\n` +
                   `⏱️ *Duration:* ${video.timestamp}\n` +
-                  `🔗 *Link:* ${video.url}\n\n` +
-                  `*Reply with a number:* \n\n` +
-                  `1️⃣ *Audio File* (MPEG)\n` +
-                  `2️⃣ *Document File* (MP3)\n\n` +
-                  `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
+                  `🔗 *Link:* ${video.url}\n\n`;
+
+        // --- BUTTON MODE ---
+        if (isButtonsOn) {
+            msg += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
+
+            const sentMsg = await bot.sendMessage(from, {
+                image: { url: video.thumbnail },
+                caption: msg,
+                footer: `_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                buttons: [
+                    { buttonId: "audio_file", buttonText: { displayText: "🎵 Audio File" }, type: 1 },
+                    { buttonId: "document_file", buttonText: { displayText: "📄 Document File" }, type: 1 }
+                ],
+                headerType: 4
+            }, { quoted: mek });
+
+            // Button Response Listener
+            const buttonListener = async (update) => {
+                const msgUpdate = update.messages[0];
+                if (!msgUpdate.message) return;
+
+                const selectedButton = msgUpdate.message.buttonsResponseMessage?.selectedButtonId;
+                const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
+
+                if (isReplyToBot && (selectedButton === 'audio_file' || selectedButton === 'document_file')) {
+                    await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+
+                    try {
+                        const finalLink = await getDownloadLink(video.url);
+                        if (!finalLink) return reply("❌ Download link not found.");
+
+                        if (selectedButton === 'audio_file') {
+                            await bot.sendMessage(from, { 
+                                audio: { url: finalLink }, 
+                                mimetype: "audio/mpeg", 
+                                ptt: false 
+                            }, { quoted: msgUpdate });
+                        } else if (selectedButton === 'document_file') {
+                            await bot.sendMessage(from, { 
+                                document: { url: finalLink }, 
+                                mimetype: "audio/mpeg", 
+                                fileName: `${video.title}.mp3`,
+                                caption: `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `
+                            }, { quoted: msgUpdate });
+                        }
+
+                        await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                    } catch (err) {
+                        console.error(err);
+                        reply("❌ Error downloading audio.");
+                    }
+
+                    bot.ev.off('messages.upsert', buttonListener);
+                }
+            };
+
+            bot.ev.on('messages.upsert', buttonListener);
+            setTimeout(() => {
+                bot.ev.off('messages.upsert', buttonListener);
+            }, 300000);
+
+            return;
+        }
+
+        // --- TEXT MODE (Default) ---
+        msg += `*Reply with a number:* \n\n` +
+               `1️⃣ *Audio File* (MPEG)\n` +
+               `2️⃣ *Document File* (MP3)\n\n` +
+               `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
 
         const sentMsg = await bot.sendMessage(from, { 
             image: { url: video.thumbnail }, 
             caption: msg 
         }, { quoted: mek });
 
-        // --- Reply Listener එක මෙතනින් පටන් ගනී ---
+        // Text Reply Listener
         const listener = async (update) => {
             const msgUpdate = update.messages[0];
             if (!msgUpdate.message) return;
@@ -42,7 +111,6 @@ cmd({
                          msgUpdate.message.extendedTextMessage?.text || 
                          msgUpdate.message.buttonsResponseMessage?.selectedButtonId;
 
-            // පරීක්ෂා කිරීම: රිප්ලයි එක කළේ කලින් යැවූ මැසේජ් එකටද සහ අංකය 1 හෝ 2 ද කියා
             const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
 
             if (isReplyToBot && (body === '1' || body === '2')) {
@@ -53,19 +121,17 @@ cmd({
                     if (!finalLink) return reply("❌ Download link not found.");
 
                     if (body === '1') {
-                        // Audio එවන්න
                         await bot.sendMessage(from, { 
                             audio: { url: finalLink }, 
                             mimetype: "audio/mpeg", 
                             ptt: false 
                         }, { quoted: msgUpdate });
                     } else if (body === '2') {
-                        // Document එවන්න
                         await bot.sendMessage(from, { 
                             document: { url: finalLink }, 
                             mimetype: "audio/mpeg", 
                             fileName: `${video.title}.mp3`,
-                            caption: "> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_"
+                            caption: `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `
                         }, { quoted: msgUpdate });
                     }
 
@@ -75,15 +141,11 @@ cmd({
                     reply("❌ Error downloading audio.");
                 }
 
-                // වැඩේ ඉවර වුණාම Listener එක ඉවත් කරන්න
                 bot.ev.off('messages.upsert', listener);
             }
         };
 
-        // Listener එක Register කිරීම
         bot.ev.on('messages.upsert', listener);
-
-        // විනාඩි 5කට පසු රිප්ලයි එකක් නැත්නම් ඉබේම Listener එක නතර කරන්න
         setTimeout(() => {
             bot.ev.off('messages.upsert', listener);
         }, 300000);
@@ -94,14 +156,13 @@ cmd({
     }
 });
 
-// --- API Logic එක පොදු Function එකක් ලෙස ---
+// --- API Logic ---
 async function getDownloadLink(videoUrl) {
     try {
         // Main API (Mr Thinuzz)
         const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp3/download?url=${encodeURIComponent(videoUrl)}&apiKey=key_faa62e4037a95cda`;
         const response = await axios.get(apiUrl);
         
-        // Response එකේ data.links.audio තියෙනවද කියලා check කරන්න
         if (response.data?.status && response.data.data?.links?.audio) {
             return response.data.data.links.audio;
         }
@@ -123,3 +184,5 @@ async function getDownloadLink(videoUrl) {
         return null;
     }
 }
+
+module.exports = { getDownloadLink };
