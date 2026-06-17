@@ -26,7 +26,7 @@ cmd({
                   `*Reply with a number:* \n\n` +
                   `1️⃣ *Audio File* (MPEG)\n` +
                   `2️⃣ *Document File* (MP3)\n\n` +
-                  `> *© ZEUS X SONG SYSTEM*`;
+                  `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
 
         const sentMsg = await bot.sendMessage(from, { 
             image: { url: video.thumbnail }, 
@@ -65,7 +65,7 @@ cmd({
                             document: { url: finalLink }, 
                             mimetype: "audio/mpeg", 
                             fileName: `${video.title}.mp3`,
-                            caption: "> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐍𝐄𝐗𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰"
+                            caption: "> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐍𝐄𝐗𝐔𝐒 𝐈𝐍𝐂 </>_"
                         }, { quoted: msgUpdate });
                     }
 
