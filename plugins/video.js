@@ -2,6 +2,7 @@ const { cmd } = require("../command");
 const axios = require("axios");
 const yts = require("yt-search");
 const config = require("../config");
+const fs = require('fs');
 
 cmd({
     pattern: "video",
@@ -35,7 +36,6 @@ cmd({
             const sentMsg = await bot.sendMessage(from, {
                 image: { url: video.thumbnail },
                 caption: msg,
-                footer: `© ${botName}`,
                 buttons: [
                     { buttonId: "video_360p", buttonText: { displayText: "🎬 360p Video" }, type: 1 },
                     { buttonId: "video_720p", buttonText: { displayText: "📹 720p Video" }, type: 1 }
@@ -71,27 +71,38 @@ cmd({
                         await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
                         try {
-                            // Determine quality
                             const quality = selectedButton === 'video_360p' ? '360p' : '720p';
-                            const downloadUrl = await getVideoLink(video.url, quality);
                             
-                            if (!downloadUrl) {
+                            // 🟢 නවීකරණය කළ video download function
+                            const downloadResult = await getVideoLink(video.url, quality);
+                            
+                            if (!downloadResult) {
                                 await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
                                 return reply("❌ Download link not found for " + quality);
                             }
 
-                            // Send video
-                            await bot.sendMessage(from, { 
-                                video: { url: downloadUrl },
-                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
-                                mimetype: "video/mp4"
-                            }, { quoted: msgUpdate });
+                            // 🟢 වීඩියෝ එවීමේ නව ක්‍රමය
+                            if (downloadResult.downloadUrl) {
+                                await bot.sendMessage(from, { 
+                                    video: { url: downloadResult.downloadUrl },
+                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                                    mimetype: "video/mp4"
+                                }, { quoted: msgUpdate });
+                            } 
+                            // 🟢 ගොනුව download කර එවීම (එක්තරා අවස්ථාවක)
+                            else if (downloadResult.filePath) {
+                                await bot.sendMessage(from, { 
+                                    video: { url: downloadResult.filePath },
+                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                                    mimetype: "video/mp4"
+                                }, { quoted: msgUpdate });
+                            }
 
                             await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
                         } catch (err) {
                             console.error("Download Error:", err);
                             await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                            reply("❌ Error downloading video.");
+                            reply("❌ Error downloading video. Please try another quality.");
                         }
                     }
                 } catch (err) {
@@ -137,24 +148,32 @@ cmd({
 
                     try {
                         const quality = body === '1' ? '360p' : '720p';
-                        const downloadUrl = await getVideoLink(video.url, quality);
+                        const downloadResult = await getVideoLink(video.url, quality);
                         
-                        if (!downloadUrl) {
+                        if (!downloadResult) {
                             await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
                             return reply("❌ Download link not found for " + quality);
                         }
 
-                        await bot.sendMessage(from, { 
-                            video: { url: downloadUrl },
-                            caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
-                            mimetype: "video/mp4"
-                        }, { quoted: msgUpdate });
+                        if (downloadResult.downloadUrl) {
+                            await bot.sendMessage(from, { 
+                                video: { url: downloadResult.downloadUrl },
+                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                                mimetype: "video/mp4"
+                            }, { quoted: msgUpdate });
+                        } else if (downloadResult.filePath) {
+                            await bot.sendMessage(from, { 
+                                video: { url: downloadResult.filePath },
+                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
+                                mimetype: "video/mp4"
+                            }, { quoted: msgUpdate });
+                        }
 
                         await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
                     } catch (err) {
                         console.error("Download Error:", err);
                         await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                        reply("❌ Error downloading video.");
+                        reply("❌ Error downloading video. Please try another quality.");
                     }
                 }
             } catch (err) {
@@ -173,29 +192,55 @@ cmd({
     }
 });
 
-// --- Video Download Function ---
+// --- Video Download Function with Multiple Methods ---
 async function getVideoLink(videoUrl, quality = '360p') {
     try {
-        // Ominisave API (ඔබ දැක්වූ API එක)
+        // Method 1: Ominisave API
         const apiUrl = `https://www.ominisave.com/api/ytmp4_v2?url=${encodeURIComponent(videoUrl)}&quality=${quality}`;
-        const response = await axios.get(apiUrl);
+        const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (response.data?.status && response.data.result?.downloadUrl) {
-            return response.data.result.downloadUrl;
+            return { 
+                downloadUrl: response.data.result.downloadUrl,
+                method: 'ominisave'
+            };
         }
 
-        // Backup API 1 (Mr Thinuzz - Video)
+        // Method 2: Mr Thinuzz API (Video)
         const backupUrl1 = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4/download?url=${encodeURIComponent(videoUrl)}&apiKey=key_faa62e4037a95cda`;
-        const backup1 = await axios.get(backupUrl1);
+        const backup1 = await axios.get(backupUrl1, { timeout: 30000 });
         if (backup1.data?.status && backup1.data.data?.links?.video) {
-            return backup1.data.data.links.video;
+            return { 
+                downloadUrl: backup1.data.data.links.video,
+                method: 'thinuzz'
+            };
         }
 
-        // Backup API 2 (GiftedTech - Video)
+        // Method 3: GiftedTech API
         const backupUrl2 = `https://api.giftedtech.my.id/api/download/dlmp4?url=${encodeURIComponent(videoUrl)}&apikey=gifted`;
-        const backup2 = await axios.get(backupUrl2);
+        const backup2 = await axios.get(backupUrl2, { timeout: 30000 });
         if (backup2.data?.result?.download_url) {
-            return backup2.data.result.download_url;
+            return { 
+                downloadUrl: backup2.data.result.download_url,
+                method: 'gifted'
+            };
+        }
+
+        // Method 4: Direct Download with ytdl-core (if available)
+        try {
+            const ytdl = require('ytdl-core');
+            const videoInfo = await ytdl.getInfo(videoUrl);
+            const format = videoInfo.formats.find(f => 
+                f.qualityLabel === quality && f.container === 'mp4'
+            );
+            if (format) {
+                return { 
+                    downloadUrl: format.url,
+                    method: 'ytdl-core'
+                };
+            }
+        } catch (ytdlError) {
+            console.log('ytdl-core failed:', ytdlError.message);
         }
 
         return null;
