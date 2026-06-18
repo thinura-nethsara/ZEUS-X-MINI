@@ -45,7 +45,7 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
 
         // Send with ZEUS original button style
         await conn.sendMessage(from, {
-            image: { url: 'https://i.ibb.co/NsV2XcK/movie-poster.png' },
+            image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
             caption: caption,
             footer: config.FOOTER || `© ${botName}`,
             buttons: buttons,
