@@ -60,7 +60,7 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
             textMsg += `\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_`;
 
             await conn.sendMessage(from, {
-                image: { url: 'https://i.ibb.co/NsV2XcK/movie-poster.png' },
+                image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
                 caption: textMsg
             }, { quoted: mek });
         }
