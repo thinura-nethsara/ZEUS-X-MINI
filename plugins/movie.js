@@ -16,7 +16,6 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
     try {
         if (!q) return await reply('*Enter movie name..🎬*');
 
-        // ===== BUTTON CHECK =====
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const isButtonsOn = settings.buttons === 'true';
         const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
@@ -29,7 +28,6 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
 
         const caption = `_*${botName} MOVIE SYSTEM 🎬*_\n\n*\`🔍Input :\`* ${q}\n\n_*🌟 Select your preferred movie download site*_`;
 
-        // ===== BUTTONS ON =====
         if (isButtonsOn) {
             const buttons = sources.map(src => ({
                 buttonId: prefix + src.cmd + ' ' + q,
@@ -50,19 +48,63 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
                 buttons: buttons,
                 headerType: 4
             }, { quoted: mek });
-        } 
-        // ===== BUTTONS OFF (Text Mode) =====
-        else {
+        } else {
             let textMsg = caption + '\n\n*Reply with number:*\n';
             sources.forEach((src, i) => {
-                textMsg += `\n${i+1}. ${src.name} (${prefix}${src.cmd} ${q})`;
+                textMsg += `\n${i+1}. ${src.name}`;
             });
             textMsg += `\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_`;
 
-            await conn.sendMessage(from, {
+            const sentMsg = await conn.sendMessage(from, {
                 image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
                 caption: textMsg
             }, { quoted: mek });
+
+            // ===== FIXED: NUMBER REPLY LISTENER =====
+            const listener = async (update) => {
+                try {
+                    const msgUpdate = update.messages[0];
+                    if (!msgUpdate || !msgUpdate.message) return;
+
+                    const body = msgUpdate.message.conversation || 
+                               msgUpdate.message.extendedTextMessage?.text;
+
+                    if (!body) return;
+
+                    const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
+                    const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
+
+                    console.log("📝 [MV] Reply received:", body, "IsReply:", isReplyToBot);
+
+                    if (isReplyToBot && body.match(/^[1-3]$/)) {
+                        const index = parseInt(body) - 1;
+                        if (index >= 0 && index < sources.length) {
+                            bot.ev.off('messages.upsert', listener);
+                            const selectedCmd = sources[index].cmd;
+                            await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+                            // Execute the command
+                            await conn.ev.emit('messages.upsert', {
+                                messages: [{
+                                    key: { remoteJid: from },
+                                    message: {
+                                        extendedTextMessage: {
+                                            text: `${prefix}${selectedCmd} ${q}`,
+                                            contextInfo: { stanzaId: msgUpdate.key.id }
+                                        }
+                                    }
+                                }]
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error("MV Listener Error:", err);
+                }
+            };
+
+            conn.ev.on('messages.upsert', listener);
+            setTimeout(() => {
+                conn.ev.off('messages.upsert', listener);
+            }, 300000);
         }
 
     } catch (e) {
@@ -71,7 +113,7 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
     }
 });
 
-// ================ CINESUBZ SEARCH ================
+// ================ FIXED CINESUBZ SEARCH ================
 cmd({
     pattern: "cine",
     react: '🔎',
@@ -85,7 +127,6 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
     try {
         if (!q) return await reply('*Please give me a movie name 🎬*');
 
-        // ===== BUTTON CHECK =====
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const isButtonsOn = settings.buttons === 'true';
 
@@ -95,13 +136,25 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
         const response = await axios.get(apiUrl);
         const result = response.data;
 
+        console.log("🔍 [CINE] API Response:", JSON.stringify(result, null, 2));
+
         if (!result.status || !result.data) {
             await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
             return await conn.sendMessage(from, { text: '*No results found ❌*' }, { quoted: mek });
         }
 
-        let results = result.data.all || result.data.movies || [];
+        // ===== FIXED: Get results correctly =====
+        let results = [];
+        if (result.data.all && Array.isArray(result.data.all) && result.data.all.length > 0) {
+            results = result.data.all;
+        } else if (result.data.movies && Array.isArray(result.data.movies) && result.data.movies.length > 0) {
+            results = result.data.movies;
+        } else if (Array.isArray(result.data)) {
+            results = result.data;
+        }
         
+        console.log("📊 [CINE] Results count:", results.length);
+
         if (results.length === 0) {
             await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
             return await conn.sendMessage(from, { text: '*No results found ❌*' }, { quoted: mek });
@@ -110,42 +163,53 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
         const totalResults = result.total_results || results.length;
         const caption = `*🎬 CINESUBZ RESULTS*\n\n*🔍 Search:* ${q}\n*📊 Found:* ${totalResults}\n\n*Select a movie below:*`;
 
-        // ===== BUTTONS ON =====
-        if (isButtonsOn) {
-            let buttons = [];
-
-            results.slice(0, 10).forEach((item) => {
-                let rawTitle = item.title || item.Title || 'Unknown Movie';
-                let cleanTitle = rawTitle;
-                if (typeof rawTitle === 'string') {
-                    cleanTitle = rawTitle
-                        .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
-                        .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
-                        .replace("Sinhala Subtitles", "")
-                        .trim();
-                }
-                
-                const typeBadge = item.type === "TV" ? "📺" : "🎬";
-                const year = item.year || item.Year || '';
-                const link = item.link || item.Link || '';
-                
-                if (!link) return;
-                
-                let displayTitle = cleanTitle.substring(0, 28);
-                if (cleanTitle.length > 28) displayTitle += '...';
-                if (year) displayTitle += ` (${year})`;
-                
-                buttons.push({
-                    buttonId: `${prefix}cinedl2 ${link}`,
-                    buttonText: { displayText: `${typeBadge} ${displayTitle}` },
-                    type: 1
-                });
-            });
-
-            if (buttons.length === 0) {
-                await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-                return await conn.sendMessage(from, { text: '*No valid results found ❌*' }, { quoted: mek });
+        // ===== FIXED: Process results safely =====
+        const movieList = [];
+        results.slice(0, 10).forEach((item, index) => {
+            const rawTitle = item.title || item.Title || 'Unknown Movie';
+            let cleanTitle = rawTitle;
+            if (typeof rawTitle === 'string') {
+                cleanTitle = rawTitle
+                    .replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "")
+                    .replace(/Sinhala Subtitle \| සිංහල උපසිරැසි සමඟ/g, "")
+                    .replace(/Sinhala Subtitles/g, "")
+                    .trim();
             }
+            
+            const typeBadge = item.type === "TV" ? "📺" : "🎬";
+            const year = item.year || item.Year || '';
+            const link = item.link || item.Link || '';
+            
+            if (!link) return;
+            
+            let displayTitle = cleanTitle.substring(0, 30);
+            if (cleanTitle.length > 30) displayTitle += '...';
+            if (year) displayTitle += ` (${year})`;
+            
+            movieList.push({
+                title: displayTitle,
+                link: link,
+                type: typeBadge,
+                year: year,
+                cleanTitle: cleanTitle,
+                index: index + 1
+            });
+        });
+
+        console.log("🎬 [CINE] Movie List:", JSON.stringify(movieList, null, 2));
+
+        if (movieList.length === 0) {
+            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
+            return await conn.sendMessage(from, { text: '*No valid results found ❌*' }, { quoted: mek });
+        }
+
+        if (isButtonsOn) {
+            // ===== BUTTON MODE =====
+            const buttons = movieList.map(movie => ({
+                buttonId: `${prefix}cinedl2 ${movie.link}`,
+                buttonText: { displayText: `${movie.type} ${movie.title}` },
+                type: 1
+            }));
 
             buttons.push({
                 buttonId: prefix + 'mv ' + q,
@@ -160,38 +224,20 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
                 buttons: buttons,
                 headerType: 4
             }, { quoted: mek });
-        } 
-        // ===== BUTTONS OFF (Text Mode) =====
-        else {
+        } else {
+            // ===== TEXT MODE =====
             let textMsg = caption + '\n\n*Reply with number:*\n';
-            
-            results.slice(0, 10).forEach((item, index) => {
-                let rawTitle = item.title || item.Title || 'Unknown Movie';
-                let cleanTitle = rawTitle;
-                if (typeof rawTitle === 'string') {
-                    cleanTitle = rawTitle
-                        .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
-                        .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
-                        .trim();
-                }
-                
-                const year = item.year || item.Year || '';
-                const link = item.link || item.Link || '';
-                
-                if (!link) return;
-                
-                textMsg += `\n${index+1}. ${cleanTitle}${year ? ` (${year})` : ''}`;
+            movieList.forEach((movie) => {
+                textMsg += `\n${movie.index}. ${movie.type} ${movie.cleanTitle}${movie.year ? ` (${movie.year})` : ''}`;
             });
-            
             textMsg += `\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ZEUS-X-MINI </>_`;
 
-            // Send text mode message
             const sentMsg = await conn.sendMessage(from, {
                 image: { url: 'https://i.ibb.co/NsV2XcK/movie-poster.png' },
                 caption: textMsg
             }, { quoted: mek });
 
-            // Add text listener for replies
+            // ===== FIXED: NUMBER REPLY LISTENER =====
             const listener = async (update) => {
                 try {
                     const msgUpdate = update.messages[0];
@@ -200,44 +246,41 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
                     const body = msgUpdate.message.conversation || 
                                msgUpdate.message.extendedTextMessage?.text;
 
+                    if (!body) return;
+
                     const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
                     const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
 
-                    if (isReplyToBot && body && !isNaN(body)) {
+                    console.log("📝 [CINE] Reply received:", body, "IsReply:", isReplyToBot);
+
+                    if (isReplyToBot && body.match(/^\d+$/)) {
                         const index = parseInt(body) - 1;
-                        const items = results.slice(0, 10);
-                        if (index >= 0 && index < items.length) {
-                            const link = items[index].link || items[index].Link || '';
-                            if (link) {
-                                bot.ev.off('messages.upsert', listener);
-                                await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
-                                // Process the selected movie
-                                await conn.sendMessage(from, {
-                                    text: `*Processing:* ${prefix}cinedl2 ${link}`
-                                }, { quoted: msgUpdate });
-                                // Call the command
-                                await conn.ev.emit('messages.upsert', {
-                                    messages: [{
-                                        key: { remoteJid: from },
-                                        message: {
-                                            extendedTextMessage: {
-                                                text: `${prefix}cinedl2 ${link}`,
-                                                contextInfo: { stanzaId: msgUpdate.key.id }
-                                            }
+                        if (index >= 0 && index < movieList.length) {
+                            conn.ev.off('messages.upsert', listener);
+                            const selected = movieList[index];
+                            await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+                            // Execute the command
+                            await conn.ev.emit('messages.upsert', {
+                                messages: [{
+                                    key: { remoteJid: from },
+                                    message: {
+                                        extendedTextMessage: {
+                                            text: `${prefix}cinedl2 ${selected.link}`,
+                                            contextInfo: { stanzaId: msgUpdate.key.id }
                                         }
-                                    }]
-                                });
-                            }
+                                    }
+                                }]
+                            });
                         }
                     }
                 } catch (err) {
-                    console.error("Text Listener Error:", err);
+                    console.error("CINE Listener Error:", err);
                 }
             };
 
-            bot.ev.on('messages.upsert', listener);
+            conn.ev.on('messages.upsert', listener);
             setTimeout(() => {
-                bot.ev.off('messages.upsert', listener);
+                conn.ev.off('messages.upsert', listener);
             }, 300000);
         }
 
@@ -260,7 +303,6 @@ async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
     try {
         if (!q) return await reply('*Please provide a movie link!*');
 
-        // ===== BUTTON CHECK =====
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const isButtonsOn = settings.buttons === 'true';
 
@@ -276,7 +318,7 @@ async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
 
         let cleanTitle = movie.maintitle || movie.title || 'N/A';
         if (typeof cleanTitle === 'string') {
-            cleanTitle = cleanTitle.replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "").trim();
+            cleanTitle = cleanTitle.replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "").trim();
         }
 
         let rating = 'N/A';
@@ -299,8 +341,8 @@ async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
         msg += `*🌍 Country:* ${movie.country || 'N/A'}\n\n`;
         msg += `*📥 Select quality:*`;
 
-        let buttons = [];
-        let textQualities = [];
+        const qualityList = [];
+        const buttons = [];
 
         if (movie.downloadUrl && Array.isArray(movie.downloadUrl) && movie.downloadUrl.length > 0) {
             const uniqueLinks = new Map();
@@ -327,17 +369,22 @@ async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
                         type: 1
                     });
                     
-                    textQualities.push(`${qualityIndex}. ${qualityName} (${dl.size || 'N/A'})`);
+                    qualityList.push({
+                        index: qualityIndex,
+                        name: qualityName,
+                        size: dl.size || 'N/A',
+                        btnId: btnId
+                    });
                 }
             });
         }
 
-        // ===== BUTTONS ON =====
-        if (isButtonsOn) {
-            if (buttons.length === 0) {
-                return await reply('*No download links available for this movie!*');
-            }
+        if (qualityList.length === 0) {
+            return await reply('*No download links available for this movie!*');
+        }
 
+        if (isButtonsOn) {
+            // ===== BUTTON MODE =====
             buttons.push({
                 buttonId: prefix + 'cdetails ' + q,
                 buttonText: { displayText: '📋 Full Details' },
@@ -359,16 +406,11 @@ async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
                 buttons: buttons,
                 headerType: 4
             }, { quoted: mek });
-        } 
-        // ===== BUTTONS OFF (Text Mode) =====
-        else {
-            if (textQualities.length === 0) {
-                return await reply('*No download links available for this movie!*');
-            }
-
+        } else {
+            // ===== TEXT MODE =====
             let textMsg = msg + '\n\n*Reply with number:*\n';
-            textQualities.forEach(q => {
-                textMsg += `\n${q}`;
+            qualityList.forEach((q) => {
+                textMsg += `\n${q.index}. ${q.name} (${q.size})`;
             });
             textMsg += `\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ZEUS-X-MINI </>_`;
 
@@ -379,7 +421,7 @@ async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
                 caption: textMsg
             }, { quoted: mek });
 
-            // Text listener for quality selection
+            // ===== FIXED: NUMBER REPLY LISTENER =====
             const listener = async (update) => {
                 try {
                     const msgUpdate = update.messages[0];
@@ -388,43 +430,41 @@ async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
                     const body = msgUpdate.message.conversation || 
                                msgUpdate.message.extendedTextMessage?.text;
 
+                    if (!body) return;
+
                     const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
                     const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
 
-                    if (isReplyToBot && body && !isNaN(body)) {
+                    console.log("📝 [CINEDL2] Reply received:", body, "IsReply:", isReplyToBot);
+
+                    if (isReplyToBot && body.match(/^\d+$/)) {
                         const index = parseInt(body) - 1;
-                        if (index >= 0 && index < textQualities.length) {
-                            // Get the corresponding button ID
-                            const btnId = buttons[index]?.buttonId;
-                            if (btnId) {
-                                bot.ev.off('messages.upsert', listener);
-                                await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
-                                // Execute the download command
-                                const parts = btnId.split(' ');
-                                const cmd = parts[0];
-                                const args = parts.slice(1).join(' ');
-                                await conn.ev.emit('messages.upsert', {
-                                    messages: [{
-                                        key: { remoteJid: from },
-                                        message: {
-                                            extendedTextMessage: {
-                                                text: `${cmd} ${args}`,
-                                                contextInfo: { stanzaId: msgUpdate.key.id }
-                                            }
+                        if (index >= 0 && index < qualityList.length) {
+                            conn.ev.off('messages.upsert', listener);
+                            const selected = qualityList[index];
+                            await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+                            // Execute the download command
+                            await conn.ev.emit('messages.upsert', {
+                                messages: [{
+                                    key: { remoteJid: from },
+                                    message: {
+                                        extendedTextMessage: {
+                                            text: selected.btnId,
+                                            contextInfo: { stanzaId: msgUpdate.key.id }
                                         }
-                                    }]
-                                });
-                            }
+                                    }
+                                }]
+                            });
                         }
                     }
                 } catch (err) {
-                    console.error("Text Listener Error:", err);
+                    console.error("CINEDL2 Listener Error:", err);
                 }
             };
 
-            bot.ev.on('messages.upsert', listener);
+            conn.ev.on('messages.upsert', listener);
             setTimeout(() => {
-                bot.ev.off('messages.upsert', listener);
+                conn.ev.off('messages.upsert', listener);
             }, 300000);
         }
 
@@ -472,8 +512,8 @@ cmd({
         let cleanName = movieName;
         if (typeof cleanName === 'string') {
             cleanName = cleanName
-                .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
-                .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
+                .replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "")
+                .replace(/Sinhala Subtitle \| සිංහල උපසිරැසි සමඟ/g, "")
                 .trim();
         }
 
@@ -529,7 +569,7 @@ async (conn, mek, m, { from, q, prefix, reply }) => {
 
         let mainTitle = movie.maintitle || movie.title || 'N/A';
         if (typeof mainTitle === 'string') {
-            mainTitle = mainTitle.replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "").trim();
+            mainTitle = mainTitle.replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "").trim();
         }
 
         let ratingValue = 'N/A';
@@ -563,7 +603,7 @@ async (conn, mek, m, { from, q, prefix, reply }) => {
 *📅 𝗬ᴇᴀʀ ➮* _${movie.dateCreate || movie.year || 'N/A'}_
 *⭐ 𝗜𝗠ᴅʙ 𝗥ᴀᴛɪɴɢ ➮* _${ratingValue}_
 *⏰ 𝗥ᴜɴᴛɪᴍᴇ ➮* _${runtimeText}_
-*🌍 𝗖𝗼𝘂ɴᴛʀʏ ➮* _${movie.country || 'N/A'}_
+*🌍 𝗖𝗼ᴜɴᴛʀʏ ➮* _${movie.country || 'N/A'}_
 *🎭 𝗚𝗲𝗻𝗿𝗲𝘀 ➮* _${genres}_
 *🎬 𝗗ɪʀᴇᴄᴛᴏʀ ➮* _${directorName}_
 
