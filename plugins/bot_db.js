@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const config = require("../config");
-
+ 
 // --- ⚙️ MONGODB URI SETTINGS ---
 const MONGO_URI = "mongodb+srv://Angle:99999978666@cluster0.ynt3dwp.mongodb.net/";
 
