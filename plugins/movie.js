@@ -28,7 +28,7 @@ async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
         ];
 
         // Use logo from config
-        const imageUrl = config.LOGO || 'https://i.ibb.co/NsV2XcK/movie-poster.png';
+        const imageUrl = config.LOGO || 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png';
 
         const caption = `*🎬 ${botName} MOVIE SYSTEM*\n\n` +
                        `*\`🔍 Search :\`* ${q}\n\n` +
