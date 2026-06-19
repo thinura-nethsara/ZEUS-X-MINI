@@ -100,74 +100,66 @@ cmd({
 
                     console.log('🔽 DOWNLOAD RESPONSE (FULL):', JSON.stringify(dlData, null, 2));
 
-                    // --- TRY MULTIPLE EXTRACTION PATHS ---
-                    let downloadUrl = null;
-                    let fileName = 'Anime.mp4';
-                    let fileSize = 'Unknown';
-                    let expiresIn = 'N/A';
+                    // Extract basic info
+                    const title = dlData.videoname || selected.title || 'N/A';
+                    const description = dlData.desc || 'No description available.';
+                    const thumbnail = dlData.thumbnail || 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png';
 
-                    // Helper to recursively search for a key
-                    function findKey(obj, key) {
-                        if (!obj || typeof obj !== 'object') return null;
-                        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
-                        for (let k in obj) {
-                            if (typeof obj[k] === 'object') {
-                                const found = findKey(obj[k], key);
-                                if (found !== null) return found;
-                            }
-                        }
-                        return null;
-                    }
+                    // Extract links
+                    const links = dlData.links || {};
+                    const linkEntries = Object.entries(links);
 
-                    // Try to find 'download', 'url', 'link', 'direct_link'
-                    downloadUrl = findKey(dlData, 'download') || 
-                                  findKey(dlData, 'url') || 
-                                  findKey(dlData, 'link') || 
-                                  findKey(dlData, 'direct_link');
+                    // Filter for direct download links (prefer those with "Direct Download" or from thenuxgdrive)
+                    const directLinks = linkEntries.filter(([key, value]) => {
+                        const isDirect = key.includes('Direct Download') || value.includes('thenuxgdrive.netlify.app');
+                        return isDirect && value && value.startsWith('http');
+                    });
 
-                    // If we still have nothing, maybe the response itself is a string URL?
-                    if (!downloadUrl && typeof dlData === 'string') {
-                        downloadUrl = dlData;
-                    }
+                    // If no direct links, fallback to any link that starts with http and is not a redirect to animeclub2.com/links/
+                    const fallbackLinks = linkEntries.filter(([key, value]) => {
+                        return value && value.startsWith('http') && !value.includes('animeclub2.com/links/');
+                    });
 
-                    // If we still have nothing, maybe it's inside a 'data' field as a string?
-                    if (!downloadUrl && dlData?.data && typeof dlData.data === 'string') {
-                        downloadUrl = dlData.data;
-                    }
+                    const finalLinks = directLinks.length ? directLinks : fallbackLinks;
 
-                    // Extract other fields
-                    fileName = findKey(dlData, 'fileName') || findKey(dlData, 'filename') || 'Anime.mp4';
-                    fileSize = findKey(dlData, 'fileSize') || findKey(dlData, 'size') || 'Unknown';
-                    expiresIn = findKey(dlData, 'expiresIn') || findKey(dlData, 'expires') || 'N/A';
-
-                    // If we still don't have a download URL, send the raw response to the user for debugging
-                    if (!downloadUrl) {
+                    if (!finalLinks.length) {
                         const raw = JSON.stringify(dlData, null, 2);
-                        // Truncate if too long
-                        const msg = raw.length > 2000 ? raw.substring(0, 1900) + '...\n\n(truncated)' : raw;
+                        const msg = raw.length > 2000 ? raw.substring(0, 1900) + '...' : raw;
                         return await bot.sendMessage(from, {
-                            text: `❌ *No download link found.*\n\n*Raw API response:*\n\`\`\`json\n${msg}\n\`\`\``
+                            text: `❌ *No download links found.*\n\n*Raw API response:*\n\`\`\`json\n${msg}\n\`\`\``
                         });
                     }
 
-                    // --- Build and send details ---
-                    const detailsCaption = `╭━━━〔 🎌 ANIMECLUB MOVIE 〕━━━⬣
+                    // Build the details caption (summary)
+                    let detailsCaption = `╭━━━〔 🎌 ANIMECLUB MOVIE 〕━━━⬣
 
-🎬 *Title:* ${selected.title || 'N/A'}
-📁 *File:* ${fileName}
-💾 *Size:* ${fileSize}
-⏳ *Link expires in:* ${expiresIn}
+🎬 *Title:* ${title}
+📝 *Description:* ${description.substring(0, 150)}${description.length > 150 ? '...' : ''}
 
-╰━━━━━━━━━━━━━━━━━━⬣
+📥 *Available Direct Downloads:*\n`;
+                    finalLinks.forEach(([key, url], i) => {
+                        detailsCaption += `${i+1}. ${key}\n`;
+                    });
+                    detailsCaption += `\n╰━━━━━━━━━━━━━━━━━━⬣
 ✨ *⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`;
 
-                    const actionButtons = [
-                        { buttonId: 'animeclub_download', buttonText: { displayText: '⬇️ Download Anime' }, type: 1 },
-                        { buttonId: 'animeclub_details_card', buttonText: { displayText: '📑 Details Card' }, type: 1 }
-                    ];
+                    // Build action buttons (one for each link + Details Card)
+                    const actionButtons = finalLinks.map(([key, url], i) => ({
+                        buttonId: `animeclub_dl_${i}`,
+                        buttonText: { displayText: `⬇️ ${key.substring(0, 25)}` },
+                        type: 1
+                    }));
+                    actionButtons.push({
+                        buttonId: 'animeclub_details_card',
+                        buttonText: { displayText: '📑 Full Details' },
+                        type: 1
+                    });
+
+                    // If too many buttons (> 10), we may need to truncate, but WhatsApp allows up to 20 buttons.
+                    // We'll keep all.
 
                     const detailMsg = await bot.sendMessage(from, {
-                        image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
+                        image: { url: thumbnail },
                         caption: detailsCaption,
                         buttons: actionButtons,
                         headerType: 4
@@ -189,36 +181,51 @@ cmd({
 
                             if (actionId === 'animeclub_details_card') {
                                 await bot.sendMessage(from, { react: { text: '📋', key: actionMsg.key } });
-                                const clean = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
+                                // Full details with all links (including non-direct)
+                                let fullDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${title}*\n\n`;
+                                fullDetails += `*📖 𝗗𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻:*\n${description}\n\n`;
+                                fullDetails += `*📥 𝗔𝗹𝗹 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗟𝗶𝗻𝗸𝘀:*\n`;
+                                linkEntries.forEach(([key, url]) => {
+                                    fullDetails += `▫️ ${key}: ${url}\n`;
+                                });
+                                fullDetails += `\n*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*\n`;
+                                fullDetails += `*👥 𝙵𝙾𝙻𝙻𝙾𝚆 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 ➟* https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o\n`;
+                                fullDetails += `*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*`;
 
-*▫️📁 𝗙𝗶𝗹𝗲𝗻𝗮𝗺𝗲 ➟ ${fileName}*
-*▫️💾 𝗦𝗶𝘇𝗲 ➟ ${fileSize}*
-*▫️⏳ 𝗘𝘅𝗽𝗶𝗿𝗲𝘀 ➟ ${expiresIn}*
-
-*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*
-*👥 𝙵𝙾𝙻𝙻𝙾𝚆 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 ➟* https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o
-*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*`;
-                                await bot.sendMessage(from, { image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' }, caption: clean }, { quoted: actionMsg });
+                                // Split if too long (WhatsApp limit ~4096)
+                                if (fullDetails.length > 4000) {
+                                    fullDetails = fullDetails.substring(0, 3950) + '\n...(truncated)';
+                                }
+                                await bot.sendMessage(from, {
+                                    image: { url: thumbnail },
+                                    caption: fullDetails
+                                }, { quoted: actionMsg });
                                 return;
                             }
 
-                            if (actionId === 'animeclub_download') {
+                            // Download button
+                            if (actionId?.startsWith('animeclub_dl_')) {
+                                const dlIndex = parseInt(actionId.split('_')[2]);
+                                const selectedLink = finalLinks[dlIndex];
+                                if (!selectedLink) return;
+
+                                const [key, url] = selectedLink;
                                 await bot.sendMessage(from, { react: { text: '⬇️', key: actionMsg.key } });
 
                                 let thumb = null;
                                 try {
-                                    const thumbRes = await axios.get('https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png', { responseType: 'arraybuffer', timeout: 10000 });
+                                    const thumbRes = await axios.get(thumbnail, { responseType: 'arraybuffer', timeout: 10000 });
                                     thumb = await sharp(thumbRes.data).resize(320, 320).jpeg({ quality: 70 }).toBuffer();
                                 } catch (e) { console.warn('Thumbnail error:', e.message); }
 
-                                const safeTitle = (selected.title || 'Anime').replace(/[^\w\s]/g, '');
-                                const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
+                                const safeTitle = title.replace(/[^\w\s]/g, '');
+                                const fileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
 
                                 await bot.sendMessage(from, {
-                                    document: { url: downloadUrl },
+                                    document: { url: url },
                                     mimetype: 'video/mp4',
-                                    fileName: sendFileName,
-                                    caption: `*${selected.title || 'Anime Movie'}*\n\n💾 *Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                    fileName: fileName,
+                                    caption: `*${title}*\n\n*Link:* ${key}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                     jpegThumbnail: thumb
                                 }, { quoted: actionMsg });
 
@@ -246,9 +253,7 @@ cmd({
             return;
         }
 
-        // ---------- TEXT MODE ----------
-        // (same but with text replies - I'm omitting for brevity, but you can copy from previous version)
-        // Actually, let's include it to keep the plugin complete.
+        // ---------- TEXT MODE (Buttons OFF) ----------
         let searchList = `🎌 *AnimeClub Search Results*\n\nQuery: ${query}\n\n`;
         let idx = 1;
         results.forEach((r) => {
@@ -288,39 +293,43 @@ cmd({
 
                 console.log('🔽 DOWNLOAD RESPONSE (FULL):', JSON.stringify(dlData, null, 2));
 
-                let downloadUrl = findKey(dlData, 'download') || findKey(dlData, 'url') || findKey(dlData, 'link') || findKey(dlData, 'direct_link');
-                if (!downloadUrl && typeof dlData === 'string') downloadUrl = dlData;
-                if (!downloadUrl && dlData?.data && typeof dlData.data === 'string') downloadUrl = dlData.data;
+                const title = dlData.videoname || selected.title || 'N/A';
+                const description = dlData.desc || 'No description available.';
+                const thumbnail = dlData.thumbnail || 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png';
 
-                const fileName = findKey(dlData, 'fileName') || findKey(dlData, 'filename') || 'Anime.mp4';
-                const fileSize = findKey(dlData, 'fileSize') || findKey(dlData, 'size') || 'Unknown';
-                const expiresIn = findKey(dlData, 'expiresIn') || findKey(dlData, 'expires') || 'N/A';
+                const links = dlData.links || {};
+                const linkEntries = Object.entries(links);
 
-                if (!downloadUrl) {
+                // Filter direct links
+                const directLinks = linkEntries.filter(([key, value]) => {
+                    return (key.includes('Direct Download') || value.includes('thenuxgdrive.netlify.app')) && value && value.startsWith('http');
+                });
+                const finalLinks = directLinks.length ? directLinks : linkEntries.filter(([key, value]) => value && value.startsWith('http') && !value.includes('animeclub2.com/links/'));
+
+                if (!finalLinks.length) {
                     const raw = JSON.stringify(dlData, null, 2);
                     const msg = raw.length > 2000 ? raw.substring(0, 1900) + '...' : raw;
                     return await bot.sendMessage(from, {
-                        text: `❌ *No download link found.*\n\n*Raw API response:*\n\`\`\`json\n${msg}\n\`\`\``
+                        text: `❌ *No download links found.*\n\n*Raw API response:*\n\`\`\`json\n${msg}\n\`\`\``
                     });
                 }
 
-                const detailCaption = `🎌 *${selected.title || 'N/A'}*
-
-📁 *File:* ${fileName}
-💾 *Size:* ${fileSize}
-⏳ *Expires:* ${expiresIn}
-
-*Reply with:*
-1️⃣ Download Anime
-2️⃣ Details Card`;
+                // Build detail message (with numbered choices)
+                let detailCaption = `🎌 *${title}*\n\n📝 ${description.substring(0, 200)}${description.length > 200 ? '...' : ''}\n\n`;
+                detailCaption += `*Select a download link by replying with the number:*\n\n`;
+                finalLinks.forEach(([key, url], i) => {
+                    detailCaption += `${i+1}️⃣ ${key}\n`;
+                });
+                detailCaption += `\nOr reply with "details" to see all links and full description.`;
 
                 const detailMsg = await bot.sendMessage(from, {
-                    image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
+                    image: { url: thumbnail },
                     caption: detailCaption
                 }, { quoted: mek });
 
                 bot.ev.off('messages.upsert', movieTextListener);
 
+                // --- Text action listener ---
                 const actionTextListener = async (update2) => {
                     try {
                         const m2 = update2.messages[0];
@@ -331,40 +340,47 @@ cmd({
                         const ctx2 = m2.message.extendedTextMessage?.contextInfo;
                         if (!ctx2 || ctx2.stanzaId !== detailMsg.key.id) return;
 
-                        const choice = body2.trim();
-                        if (choice === '2' || choice.toLowerCase() === 'details card') {
+                        const choice = body2.trim().toLowerCase();
+                        if (choice === 'details' || choice === 'details card') {
                             await bot.sendMessage(from, { react: { text: '📋', key: m2.key } });
-                            const clean = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
-
-*▫️📁 𝗙𝗶𝗹𝗲𝗻𝗮𝗺𝗲 ➟ ${fileName}*
-*▫️💾 𝗦𝗶𝘇𝗲 ➟ ${fileSize}*
-*▫️⏳ 𝗘𝘅𝗽𝗶𝗿𝗲𝘀 ➟ ${expiresIn}*
-
-*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*
-*👥 𝙵𝙾𝙻𝙻𝙾𝚆 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 ➟* https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o
-*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*`;
-                            await bot.sendMessage(from, { image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' }, caption: clean }, { quoted: m2 });
+                            let fullDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${title}*\n\n`;
+                            fullDetails += `*📖 𝗗𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻:*\n${description}\n\n`;
+                            fullDetails += `*📥 𝗔𝗹𝗹 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗟𝗶𝗻𝗸𝘀:*\n`;
+                            linkEntries.forEach(([key, url]) => {
+                                fullDetails += `▫️ ${key}: ${url}\n`;
+                            });
+                            fullDetails += `\n*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*\n`;
+                            fullDetails += `*👥 𝙵𝙾𝙻𝙻𝙾𝚆 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 ➟* https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o\n`;
+                            fullDetails += `*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*`;
+                            if (fullDetails.length > 4000) fullDetails = fullDetails.substring(0, 3950) + '\n...(truncated)';
+                            await bot.sendMessage(from, {
+                                image: { url: thumbnail },
+                                caption: fullDetails
+                            }, { quoted: m2 });
                             bot.ev.off('messages.upsert', actionTextListener);
                             return;
                         }
 
-                        if (choice === '1' || choice.toLowerCase() === 'download') {
+                        // Try to parse as a number
+                        const dlIndex = parseInt(choice);
+                        if (!isNaN(dlIndex) && dlIndex >= 1 && dlIndex <= finalLinks.length) {
+                            const [key, url] = finalLinks[dlIndex - 1];
                             await bot.sendMessage(from, { react: { text: '⬇️', key: m2.key } });
 
                             let thumb = null;
                             try {
-                                const thumbRes = await axios.get('https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png', { responseType: 'arraybuffer', timeout: 10000 });
+                                const thumbRes = await axios.get(thumbnail, { responseType: 'arraybuffer', timeout: 10000 });
                                 thumb = await sharp(thumbRes.data).resize(320, 320).jpeg({ quality: 70 }).toBuffer();
                             } catch (e) { console.warn('Thumbnail error:', e.message); }
 
-                            const safeTitle = (selected.title || 'Anime').replace(/[^\w\s]/g, '');
-                            const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
+                            const safeTitle = title.replace(/[^\w\s]/g, '');
+                            const fileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
 
                             await bot.sendMessage(from, {
-                                document: { url: downloadUrl },
+                                document: { url: url },
                                 mimetype: 'video/mp4',
-                                fileName: sendFileName,
-                                caption: `*${selected.title || 'Anime Movie'}*\n\n💾 *Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                fileName: fileName,
+                                caption: `*${title}*\n\n*Link:* ${key}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                 jpegThumbnail: thumb
                             }, { quoted: m2 });
 
