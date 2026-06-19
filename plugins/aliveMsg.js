@@ -22,7 +22,7 @@ function getAliveMessage(botInfo = {}) {
 ✧  *${botInfo.botName || 'ZEUS XMD'}*  ✧
 ◈◈◈◈◈◈◈◈◈◈◈
 ${greeting} ✨
-\`✦  ᴘʀᴇꜰɪx   :  ${botInfo.prefix || '/'}\`
+\`✦  ᴘʀᴇꜰɪx   :  ${botInfo.prefix || '.'}\`
 \`✦  ᴅᴀᴛᴇ     :  ${date}\`
 \`✦  ᴛɪᴍᴇ     :  ${time}\`
 \`✦  ᴜᴘᴛɪᴍᴇ  :  ${uptimeStr}\`
