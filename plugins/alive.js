@@ -5,7 +5,7 @@ const axios = require('axios');
 const CHANNEL_JID = "120363425542933159@newsletter";
 
 // ============================================
-// 🟢 ALIVE MESSAGE FUNCTION - ඇතුලටම එකතු කළා
+// 🟢 ALIVE MESSAGE FUNCTION - PREFIX DYNAMIC
 // ============================================
 function getAliveMessage(botInfo = {}) {
     // ශ්‍රී ලාංකික වේලාව (UTC+5:30)
@@ -24,7 +24,7 @@ function getAliveMessage(botInfo = {}) {
         hour12: false 
     });
 
-    // Dynamic Greeting (ශ්‍රී ලාංකික වේලාව අනුව)
+    // Dynamic Greeting
     const hour = sriLankaTime.getHours();
     let greeting = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ ☀️";
     if (hour >= 12 && hour < 17) greeting = "ɢᴏᴏᴅ ᴀꜰᴛᴇʀɴᴏᴏɴ 🌤️";
@@ -38,8 +38,9 @@ function getAliveMessage(botInfo = {}) {
     const mins = Math.floor((uptimeSec % 3600) / 60);
     const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
 
-    // Config එකෙන් Prefix එක Auto Detect
-    const prefix = config.DEFAULT_PREFIX || botInfo.prefix || '/';
+    // 🟢 PREFIX DYNAMIC - Config එකෙන් හෝ botInfo වලින් ගන්න
+    // පළමුව botInfo වලින්, නැත්නම් config වලින්, නැත්නම් default එක
+    const prefix = botInfo.prefix || config.DEFAULT_PREFIX || '/';
 
     return `
 ◈◈◈◈◈◈◈◈◈◈◈
@@ -88,18 +89,18 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
     try {
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
+        
+        // 🟢 PREFIX එක Dynamic විදියට ගන්න
         const prefix = settings.prefix || config.DEFAULT_PREFIX || ".";
         const isButtonsOn = settings.buttons === 'true';
 
-        // Uptime ගණනය කිරීම
+        // Uptime ගණනය
         const uptime = process.uptime();
 
-        // ============================================
-        // 🟢 දැන් getAliveMessage function එක CALL කරන්න
-        // ============================================
+        // 🟢 getAliveMessage call කරන්න - මෙතනදි prefix එක pass කරනවා
         const finalMsg = getAliveMessage({
             botName: botName,
-            prefix: prefix,
+            prefix: prefix,  // 🟢 මෙතනින් update වෙන prefix එක pass වෙනවා
             uptime: uptime
         });
 
