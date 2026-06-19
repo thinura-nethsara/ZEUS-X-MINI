@@ -3,14 +3,14 @@ const { cmd, commands } = require('../command');
 const axios = require('axios');
 const { getBuffer, fetchJson, sleep } = require('../lib/functions');
 
-// ============================================================
-// 📌 GLOBAL CONFIGURATION
-// ============================================================
 const FOOTER_TEXT = "> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰";
 const BOT_LOGO = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
 
+// --- Global state to track search results per user/message ---
+const movieSearchState = new Map();
+
 // ============================================================
-// 📌 MAIN MOVIE SEARCH COMMAND (.mv)
+// 📌 MAIN MOVIE SEARCH (.mv) - Source Selector
 // ============================================================
 cmd({
     pattern: "mv",
@@ -41,14 +41,14 @@ async (zanta, mek, m, { from, prefix, q, reply }) => {
 });
 
 // ============================================================
-// 📌 CINESUBZ SEARCH (.cine)
+// 📌 CINESUBZ SEARCH (.cine) - with Reply System (song.js style)
 // ============================================================
 cmd({
     pattern: "cine",
     react: '🔎',
     category: "movie",
     alias: ["cz"],
-    desc: "Search movies from CineSubz",
+    desc: "Search movies from CineSubz (Reply with number)",
     use: ".cine <movie name>",
     filename: __filename
 },
@@ -56,6 +56,7 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
     try {
         if (!q) return await reply('🎬 *Please enter a movie name!*\n\n*Example:* .cine Avatar');
 
+        // --- 1. SEARCH API ---
         const result = await fetchJson(`https://mr-thinuzz-api-build.vercel.app/api/cinesubz/search?query=${encodeURIComponent(q)}&apiKey=key_13be1374312cdd0a`);
 
         if (!result.status || !result.data || result.data.all?.length === 0) {
@@ -65,10 +66,12 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
 
         const results = result.data.all || [];
         const total = result.total_results || results.length;
+        const displayResults = results.slice(0, 15);
 
-        let msg = `🎬 *CINESUBZ SEARCH RESULTS*\n\n🔍 *Input:* ${q}\n📊 *Results:* ${total}\n\n📌 *Select a movie:*\n\n`;
+        // --- 2. BUILD NUMBERED LIST MESSAGE ---
+        let msg = `🎬 *CINESUBZ SEARCH RESULTS*\n\n🔍 *Input:* ${q}\n📊 *Results:* ${total}\n\n📌 *Reply with the number of the movie you want:*\n\n`;
 
-        results.slice(0, 15).forEach((item, index) => {
+        displayResults.forEach((item, index) => {
             let cleanTitle = item.title
                 .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
                 .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
@@ -76,62 +79,76 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
             
             const typeBadge = item.type === "TV" ? "📺" : "🎬";
             msg += `${index + 1}. ${typeBadge} *${cleanTitle}* ${item.year ? `(${item.year})` : ''}\n`;
-            msg += `   ${prefix}cinedl ${item.link}\n\n`;
         });
 
-        msg += `\n${FOOTER_TEXT}`;
+        msg += `\n_Example: Reply with *1* to get download options_\n\n${FOOTER_TEXT}`;
 
-        await zanta.sendMessage(from, {
+        // --- 3. SEND MESSAGE ---
+        const sentMsg = await zanta.sendMessage(from, {
             image: { url: BOT_LOGO },
             caption: msg
         }, { quoted: mek });
 
-    } catch (e) {
-        console.error("CINE Error:", e);
-        await reply(`❌ *Error:* ${e.message}`);
-    }
-});
+        // --- 4. STORE STATE ---
+        const searchKey = `${from}_${sentMsg.key.id}`;
+        movieSearchState.set(searchKey, {
+            results: displayResults,
+            prefix: prefix,
+            source: 'cine',
+            timestamp: Date.now()
+        });
 
-// ============================================================
-// 📌 CINESUBZ DOWNLOAD (.cinedl)
-// ============================================================
-cmd({
-    pattern: "cinedl",
-    react: '🎥',
-    desc: "Get download links for CineSubz movie",
-    filename: __filename
-},
-async (zanta, mek, m, { from, q, prefix, reply }) => {
-    try {
-        if (!q) return await reply('❌ *Invalid link!*');
+        // --- 5. REPLY LISTENER (song.js style) ---
+        const listener = async (update) => {
+            const msgUpdate = update.messages[0];
+            if (!msgUpdate.message) return;
 
-        const data = await fetchJson(`https://mr-thinuzz-api-build.vercel.app/api/cinesubz/movie?url=${encodeURIComponent(q)}&apiKey=key_13be1374312cdd0a`);
+            const body = msgUpdate.message.conversation || 
+                         msgUpdate.message.extendedTextMessage?.text ||
+                         msgUpdate.message.buttonsResponseMessage?.selectedButtonId;
 
-        if (!data.status || !data.data) {
-            return await reply('❌ *Error fetching movie details!*');
-        }
+            // Check if this reply is to our search message
+            const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
 
-        const movie = data.data;
+            if (isReplyToBot && body) {
+                const selectedIndex = parseInt(body.trim()) - 1;
+                const state = movieSearchState.get(searchKey);
 
-        let cleanTitle = movie.maintitle || movie.title || 'N/A';
-        cleanTitle = cleanTitle.replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "").trim();
+                if (state && selectedIndex >= 0 && selectedIndex < state.results.length) {
+                    const selectedMovie = state.results[selectedIndex];
+                    
+                    // React to show processing
+                    await zanta.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
-        let ratingText = 'N/A';
-        if (movie.imdb?.value && movie.imdb.value !== "00") {
-            ratingText = movie.imdb.value;
-        }
+                    // --- FETCH MOVIE DETAILS ---
+                    const movieLink = selectedMovie.link;
+                    const cleanTitle = selectedMovie.title
+                        .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
+                        .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
+                        .trim();
 
-        let runtimeText = movie.runtime || 'N/A';
-        if (runtimeText.startsWith("IMDb:")) {
-            runtimeText = runtimeText.replace("IMDb:", "").trim();
-        }
+                    const data = await fetchJson(`https://mr-thinuzz-api-build.vercel.app/api/cinesubz/movie?url=${encodeURIComponent(movieLink)}&apiKey=key_13be1374312cdd0a`);
 
-        let genres = 'Movie';
-        if (movie.category?.length > 0) {
-            genres = movie.category.join(', ');
-        }
+                    if (data.status && data.data) {
+                        const movie = data.data;
+                        
+                        let ratingText = 'N/A';
+                        if (movie.imdb?.value && movie.imdb.value !== "00") {
+                            ratingText = movie.imdb.value;
+                        }
 
-        let msg = `🎬 *${cleanTitle}*
+                        let runtimeText = movie.runtime || 'N/A';
+                        if (runtimeText.startsWith("IMDb:")) {
+                            runtimeText = runtimeText.replace("IMDb:", "").trim();
+                        }
+
+                        let genres = 'Movie';
+                        if (movie.category?.length > 0) {
+                            genres = movie.category.join(', ');
+                        }
+
+                        // --- BUILD DETAIL MESSAGE WITH DOWNLOAD OPTIONS ---
+                        let detailMsg = `🎬 *${cleanTitle}*
 
 📅 *Released:* ${movie.dateCreate || 'N/A'}
 ⭐ *IMDb Rating:* ${ratingText}
@@ -141,50 +158,74 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
 
 📥 *Download Options:*\n\n`;
 
-        let hasLinks = false;
-        if (movie.downloadUrl && movie.downloadUrl.length > 0) {
-            const uniqueLinks = new Map();
-            movie.downloadUrl.forEach((dl) => {
-                const qualityKey = dl.quality.toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (!uniqueLinks.has(qualityKey)) {
-                    uniqueLinks.set(qualityKey, dl);
+                        let hasLinks = false;
+                        let dlCount = 1;
+                        if (movie.downloadUrl && movie.downloadUrl.length > 0) {
+                            const uniqueLinks = new Map();
+                            movie.downloadUrl.forEach((dl) => {
+                                const qualityKey = dl.quality.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                if (!uniqueLinks.has(qualityKey)) {
+                                    uniqueLinks.set(qualityKey, dl);
+                                }
+                            });
+                            
+                            Array.from(uniqueLinks.values()).forEach((dl) => {
+                                let qualityName = dl.quality || 'Unknown';
+                                qualityName = qualityName.replace("BluRay", "").trim();
+                                detailMsg += `${dlCount++}. ${qualityName} - ${dl.size || 'N/A'}\n`;
+                                detailMsg += `   ${state.prefix}zdl ${dl.link}±${cleanTitle}±${movie.mainImage}±${qualityName}\n\n`;
+                                hasLinks = true;
+                            });
+                        }
+
+                        if (!hasLinks) {
+                            detailMsg += `❌ *No download links available*\n`;
+                        }
+
+                        detailMsg += `\n📋 *Full Details:* ${state.prefix}mvcard ${cleanTitle}\n\n${FOOTER_TEXT}`;
+
+                        let posterUrl = movie.mainImage;
+                        if (!posterUrl && movie.imageUrls?.length > 0) {
+                            posterUrl = movie.imageUrls[0];
+                        }
+
+                        await zanta.sendMessage(from, {
+                            image: { url: posterUrl || BOT_LOGO },
+                            caption: detailMsg
+                        }, { quoted: msgUpdate });
+
+                        await zanta.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                    } else {
+                        await reply('❌ *Error fetching movie details!*');
+                    }
+
+                    // --- CLEANUP ---
+                    movieSearchState.delete(searchKey);
+                    zanta.ev.off('messages.upsert', listener);
+                } else {
+                    await zanta.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                    await reply(`❌ *Invalid number! Please reply with a number between 1 and ${state?.results?.length || 0}*`);
                 }
-            });
-            
-            let count = 1;
-            Array.from(uniqueLinks.values()).forEach((dl) => {
-                let qualityName = dl.quality || 'Unknown';
-                qualityName = qualityName.replace("BluRay", "").trim();
-                msg += `${count++}. ${qualityName} - ${dl.size || 'N/A'}\n`;
-                msg += `   ${prefix}zdl ${dl.link}±${cleanTitle}±${movie.mainImage}±${qualityName}\n\n`;
-                hasLinks = true;
-            });
-        }
+            }
+        };
 
-        if (!hasLinks) {
-            msg += `❌ *No download links available*\n`;
-        }
+        // --- 6. REGISTER LISTENER ---
+        zanta.ev.on('messages.upsert', listener);
 
-        msg += `\n📋 *Full Details:* ${prefix}mvcard ${cleanTitle}\n\n${FOOTER_TEXT}`;
-
-        let posterUrl = movie.mainImage;
-        if (!posterUrl && movie.imageUrls?.length > 0) {
-            posterUrl = movie.imageUrls[0];
-        }
-
-        await zanta.sendMessage(from, {
-            image: { url: posterUrl || BOT_LOGO },
-            caption: msg
-        }, { quoted: mek });
+        // --- 7. AUTO CLEANUP (5 minutes timeout) ---
+        setTimeout(() => {
+            zanta.ev.off('messages.upsert', listener);
+            movieSearchState.delete(searchKey);
+        }, 300000);
 
     } catch (e) {
-        console.error("CINEDL Error:", e);
+        console.error("CINE Error:", e);
         await reply(`❌ *Error:* ${e.message}`);
     }
 });
 
 // ============================================================
-// 📌 ZEUS DOWNLOAD (.zdl) - Direct Download Handler
+// 📌 ZEUS DOWNLOAD (.zdl) - Direct Download Handler (song.js style)
 // ============================================================
 cmd({
     pattern: "zdl",
@@ -200,11 +241,13 @@ cmd({
 
         await m.react('⏳');
 
+        // --- GET DOWNLOAD LINK ---
         const response = await fetchJson(`https://mr-thinuzz-api-build.vercel.app/api/cinesubz/download?url=${encodeURIComponent(movieUrl)}&apiKey=key_13be1374312cdd0a`);
 
         let downloadUrl = null;
 
         if (response?.status && response?.data?.downloadUrls) {
+            // Prefer direct links over Telegram
             const directLink = response.data.downloadUrls.find(item => 
                 item.url && !item.url.includes("t.me") && !item.url.includes("telegram")
             );
@@ -224,6 +267,7 @@ cmd({
 
         await m.react('⬆️');
 
+        // --- PROCESS THUMBNAIL ---
         let thumbBuffer = null;
         if (thumbUrl && thumbUrl !== 'undefined') {
             try {
@@ -235,7 +279,7 @@ cmd({
 
         const cleanName = movieName.replace("Sinhala Subtitles", "").trim();
 
-        // Send file
+        // --- SEND FILE ---
         const targetJid = config.JID || from;
         await zanta.sendMessage(targetJid, {
             document: { url: downloadUrl },
@@ -254,13 +298,13 @@ cmd({
 });
 
 // ============================================================
-// 📌 SINHALASUB SEARCH (.sinhalasub)
+// 📌 SINHALASUB SEARCH (.sinhalasub) - with Reply System
 // ============================================================
 cmd({
     pattern: "sinhalasub",
     react: '🔎',
     category: "movie",
-    desc: "Search movies from Sinhalasub.lk",
+    desc: "Search movies from Sinhalasub.lk (Reply with number)",
     use: ".sinhalasub <movie name>",
     filename: __filename
 },
@@ -275,9 +319,11 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
             return await reply(`❌ *No results found for "${q}"*`);
         }
 
-        let msg = `🎬 *SINHALASUB SEARCH RESULTS*\n\n🔍 *Input:* ${q}\n📊 *Results:* ${result.total_results || result.data.length}\n\n📌 *Select a movie:*\n\n`;
+        const results = result.data.slice(0, 15);
 
-        result.data.slice(0, 15).forEach((movie, index) => {
+        let msg = `🎬 *SINHALASUB SEARCH RESULTS*\n\n🔍 *Input:* ${q}\n📊 *Results:* ${result.total_results || result.data.length}\n\n📌 *Reply with the number of the movie you want:*\n\n`;
+
+        results.forEach((movie, index) => {
             let cleanTitle = movie.Title
                 .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
                 .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
@@ -287,51 +333,58 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
             const ratingInfo = movie.Rating && movie.Rating !== "N/A" ? ` ⭐${movie.Rating}` : '';
             
             msg += `${index + 1}. *${cleanTitle}*${yearInfo}${ratingInfo}\n`;
-            msg += `   ${prefix}sinfodl ${movie.Link}\n\n`;
         });
 
-        msg += `\n${FOOTER_TEXT}`;
+        msg += `\n_Example: Reply with *1* to get download options_\n\n${FOOTER_TEXT}`;
 
-        await zanta.sendMessage(from, {
+        const sentMsg = await zanta.sendMessage(from, {
             image: { url: BOT_LOGO },
             caption: msg
         }, { quoted: mek });
 
-    } catch (e) {
-        console.error("SINHALASUB Error:", e);
-        await reply(`❌ *Error:* ${e.message}`);
-    }
-});
+        const searchKey = `${from}_${sentMsg.key.id}`;
+        movieSearchState.set(searchKey, {
+            results: results,
+            prefix: prefix,
+            source: 'sinhalasub',
+            timestamp: Date.now()
+        });
 
-// ============================================================
-// 📌 SINHALASUB INFO (.sinfodl)
-// ============================================================
-cmd({
-    pattern: "sinfodl",
-    react: '🎥',
-    desc: "Get download links from Sinhalasub",
-    filename: __filename
-},
-async (zanta, mek, m, { from, q, prefix, reply }) => {
-    try {
-        if (!q) return await reply('❌ *Invalid link!*');
+        // --- Reply Listener ---
+        const listener = async (update) => {
+            const msgUpdate = update.messages[0];
+            if (!msgUpdate.message) return;
 
-        const res = await fetchJson(`https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(q)}&apiKey=key_13be1374312cdd0a`);
-        const movie = res.data;
+            const body = msgUpdate.message.conversation || 
+                         msgUpdate.message.extendedTextMessage?.text;
 
-        if (!movie) {
-            return await reply('❌ *Error fetching movie details!*');
-        }
+            const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
 
-        let genres = 'N/A';
-        if (movie.genres?.length > 0) {
-            genres = movie.genres.join(', ');
-        }
+            if (isReplyToBot && body) {
+                const selectedIndex = parseInt(body.trim()) - 1;
+                const state = movieSearchState.get(searchKey);
 
-        let cleanTitle = movie.title || 'N/A';
-        cleanTitle = cleanTitle.replace("Sinhala Subtitles", "").trim();
+                if (state && selectedIndex >= 0 && selectedIndex < state.results.length) {
+                    const selectedMovie = state.results[selectedIndex];
+                    
+                    await zanta.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
-        let msg = `🎬 *${cleanTitle}*
+                    const movieLink = selectedMovie.Link;
+                    const cleanTitle = selectedMovie.Title
+                        .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
+                        .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
+                        .trim();
+
+                    const res = await fetchJson(`https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(movieLink)}&apiKey=key_13be1374312cdd0a`);
+                    const movie = res.data;
+
+                    if (movie) {
+                        let genres = 'N/A';
+                        if (movie.genres?.length > 0) {
+                            genres = movie.genres.join(', ');
+                        }
+
+                        let detailMsg = `🎬 *${cleanTitle}*
 
 📅 *Released:* ${movie.release_date || 'N/A'}
 ⭐ *IMDb Rating:* ${movie.imdb_rating || 'N/A'}
@@ -341,42 +394,63 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
 
 📥 *Download Options:*\n\n`;
 
-        let hasLinks = false;
-        if (movie.download_links && movie.download_links.length > 0) {
-            const uniqueQualities = new Map();
-            movie.download_links.forEach((dl) => {
-                if (dl.quality === "SRT") return;
-                if (dl.provider === "Telegram") return;
-                
-                const qualityKey = dl.quality;
-                if (!uniqueQualities.has(qualityKey)) {
-                    uniqueQualities.set(qualityKey, dl);
+                        let hasLinks = false;
+                        let dlCount = 1;
+                        if (movie.download_links && movie.download_links.length > 0) {
+                            const uniqueQualities = new Map();
+                            movie.download_links.forEach((dl) => {
+                                if (dl.quality === "SRT") return;
+                                if (dl.provider === "Telegram") return;
+                                
+                                const qualityKey = dl.quality;
+                                if (!uniqueQualities.has(qualityKey)) {
+                                    uniqueQualities.set(qualityKey, dl);
+                                }
+                            });
+                            
+                            Array.from(uniqueQualities.values()).forEach((dl) => {
+                                detailMsg += `${dlCount++}. ${dl.quality} - ${dl.size}\n`;
+                                detailMsg += `   ${state.prefix}sdl ${dl.url}±${cleanTitle}±${movie.poster}±${dl.quality}\n\n`;
+                                hasLinks = true;
+                            });
+                        }
+
+                        if (!hasLinks) {
+                            detailMsg += `❌ *No download links available*\n`;
+                        }
+
+                        detailMsg += `\n📋 *Full Details:* ${state.prefix}mvcard ${cleanTitle}\n\n${FOOTER_TEXT}`;
+
+                        const posterUrl = movie.poster || BOT_LOGO;
+
+                        await zanta.sendMessage(from, {
+                            image: { url: posterUrl },
+                            caption: detailMsg
+                        }, { quoted: msgUpdate });
+
+                        await zanta.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                    } else {
+                        await reply('❌ *Error fetching movie details!*');
+                    }
+
+                    movieSearchState.delete(searchKey);
+                    zanta.ev.off('messages.upsert', listener);
+                } else {
+                    await zanta.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                    await reply(`❌ *Invalid number! Please reply with a number between 1 and ${state?.results?.length || 0}*`);
                 }
-            });
-            
-            let count = 1;
-            Array.from(uniqueQualities.values()).forEach((dl) => {
-                msg += `${count++}. ${dl.quality} - ${dl.size}\n`;
-                msg += `   ${prefix}sdl ${dl.url}±${cleanTitle}±${movie.poster}±${dl.quality}\n\n`;
-                hasLinks = true;
-            });
-        }
+            }
+        };
 
-        if (!hasLinks) {
-            msg += `❌ *No download links available*\n`;
-        }
+        zanta.ev.on('messages.upsert', listener);
 
-        msg += `\n📋 *Full Details:* ${prefix}mvcard ${cleanTitle}\n\n${FOOTER_TEXT}`;
-
-        const posterUrl = movie.poster || BOT_LOGO;
-
-        await zanta.sendMessage(from, {
-            image: { url: posterUrl },
-            caption: msg
-        }, { quoted: mek });
+        setTimeout(() => {
+            zanta.ev.off('messages.upsert', listener);
+            movieSearchState.delete(searchKey);
+        }, 300000);
 
     } catch (e) {
-        console.error("SINFODL Error:", e);
+        console.error("SINHALASUB Error:", e);
         await reply(`❌ *Error:* ${e.message}`);
     }
 });
@@ -435,13 +509,13 @@ cmd({
 });
 
 // ============================================================
-// 📌 SUB.LK SEARCH (.sublk)
+// 📌 SUB.LK SEARCH (.sublk) - with Reply System
 // ============================================================
 cmd({
     pattern: "sublk",
     react: '🔎',
     category: "movie",
-    desc: "Search movies from SUB.LK",
+    desc: "Search movies from SUB.LK (Reply with number)",
     use: ".sublk <movie name>",
     filename: __filename
 },
@@ -456,48 +530,57 @@ async (zanta, mek, m, { from, q, prefix, reply }) => {
             return await reply(`❌ *No results found for "${q}"*`);
         }
 
-        let msg = `🎬 *SUB.LK SEARCH RESULTS*\n\n🔍 *Input:* ${q}\n📊 *Results:* ${url.result.length}\n\n📌 *Select a movie:*\n\n`;
+        const results = url.result.slice(0, 15);
 
-        url.result.slice(0, 15).forEach((item, index) => {
+        let msg = `🎬 *SUB.LK SEARCH RESULTS*\n\n🔍 *Input:* ${q}\n📊 *Results:* ${url.result.length}\n\n📌 *Reply with the number of the movie you want:*\n\n`;
+
+        results.forEach((item, index) => {
             const title = item.title || 'Unknown Title';
             msg += `${index + 1}. *${title}*\n`;
-            msg += `   ${prefix}sublkdl ${item.link}&${item.year || 'N/A'}\n\n`;
         });
 
-        msg += `\n${FOOTER_TEXT}`;
+        msg += `\n_Example: Reply with *1* to get download options_\n\n${FOOTER_TEXT}`;
 
-        await zanta.sendMessage(from, {
+        const sentMsg = await zanta.sendMessage(from, {
             image: { url: BOT_LOGO },
             caption: msg
         }, { quoted: mek });
 
-    } catch (e) {
-        console.error("SUBLK Error:", e);
-        await reply(`❌ *Error:* ${e.message}`);
-    }
-});
+        const searchKey = `${from}_${sentMsg.key.id}`;
+        movieSearchState.set(searchKey, {
+            results: results,
+            prefix: prefix,
+            source: 'sublk',
+            timestamp: Date.now()
+        });
 
-// ============================================================
-// 📌 SUB.LK DOWNLOAD (.sublkdl)
-// ============================================================
-cmd({
-    pattern: "sublkdl",
-    react: '🎥',
-    desc: "Get download links from SUB.LK",
-    filename: __filename
-},
-async (zanta, mek, m, { from, q, prefix, reply }) => {
-    try {
-        if (!q || !q.includes('https://sub.lk/movies/')) {
-            return await reply('❌ *Invalid link! Please search using .sublk first.*');
-        }
+        // --- Reply Listener ---
+        const listener = async (update) => {
+            const msgUpdate = update.messages[0];
+            if (!msgUpdate.message) return;
 
-        const data = await fetchJson(`https://sadaslk-apis.vercel.app/api/v1/movie/sublk/infodl?q=${q}&apiKey=sadasggggg`);
-        const movie = data.data;
+            const body = msgUpdate.message.conversation || 
+                         msgUpdate.message.extendedTextMessage?.text;
 
-        if (!movie) return await reply('❌ *No details found!*');
+            const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
 
-        let msg = `🎬 *${movie.title || 'N/A'}*
+            if (isReplyToBot && body) {
+                const selectedIndex = parseInt(body.trim()) - 1;
+                const state = movieSearchState.get(searchKey);
+
+                if (state && selectedIndex >= 0 && selectedIndex < state.results.length) {
+                    const selectedMovie = state.results[selectedIndex];
+                    
+                    await zanta.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+
+                    const movieLink = selectedMovie.link;
+                    const title = selectedMovie.title || 'Unknown';
+
+                    const data = await fetchJson(`https://sadaslk-apis.vercel.app/api/v1/movie/sublk/infodl?q=${movieLink}&apiKey=sadasggggg`);
+                    const movie = data.data;
+
+                    if (movie) {
+                        let detailMsg = `🎬 *${movie.title || 'N/A'}*
 ${movie.tagline ? `✨ *Tagline:* ${movie.tagline}` : ''}
 
 📅 *Release Date:* ${movie.releaseDate || 'N/A'}
@@ -508,31 +591,52 @@ ${movie.tagline ? `✨ *Tagline:* ${movie.tagline}` : ''}
 
 📥 *Download Options:*\n\n`;
 
-        let hasLinks = false;
-        if (movie.pixeldrainDownloads?.length > 0) {
-            let count = 1;
-            movie.pixeldrainDownloads.forEach((dl) => {
-                msg += `${count++}. ${dl.quality} - ${dl.size}\n`;
-                msg += `   ${prefix}sublkdl2 ${dl.finalDownloadUrl}±${movie.imageUrl}±${movie.title}±${dl.quality}\n\n`;
-                hasLinks = true;
-            });
-        }
+                        let hasLinks = false;
+                        let dlCount = 1;
+                        if (movie.pixeldrainDownloads?.length > 0) {
+                            movie.pixeldrainDownloads.forEach((dl) => {
+                                detailMsg += `${dlCount++}. ${dl.quality} - ${dl.size}\n`;
+                                detailMsg += `   ${state.prefix}sublkdl2 ${dl.finalDownloadUrl}±${movie.imageUrl}±${movie.title}±${dl.quality}\n\n`;
+                                hasLinks = true;
+                            });
+                        }
 
-        if (!hasLinks) {
-            msg += `❌ *No download links available*\n`;
-        }
+                        if (!hasLinks) {
+                            detailMsg += `❌ *No download links available*\n`;
+                        }
 
-        msg += `\n📋 *Full Details:* ${prefix}mvcard ${movie.title}\n\n${FOOTER_TEXT}`;
+                        detailMsg += `\n📋 *Full Details:* ${state.prefix}mvcard ${movie.title}\n\n${FOOTER_TEXT}`;
 
-        const highQualityImg = movie.imageUrl?.replace('-200x300', '') || BOT_LOGO;
+                        const highQualityImg = movie.imageUrl?.replace('-200x300', '') || BOT_LOGO;
 
-        await zanta.sendMessage(from, {
-            image: { url: highQualityImg },
-            caption: msg
-        }, { quoted: mek });
+                        await zanta.sendMessage(from, {
+                            image: { url: highQualityImg },
+                            caption: detailMsg
+                        }, { quoted: msgUpdate });
+
+                        await zanta.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
+                    } else {
+                        await reply('❌ *Error fetching movie details!*');
+                    }
+
+                    movieSearchState.delete(searchKey);
+                    zanta.ev.off('messages.upsert', listener);
+                } else {
+                    await zanta.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
+                    await reply(`❌ *Invalid number! Please reply with a number between 1 and ${state?.results?.length || 0}*`);
+                }
+            }
+        };
+
+        zanta.ev.on('messages.upsert', listener);
+
+        setTimeout(() => {
+            zanta.ev.off('messages.upsert', listener);
+            movieSearchState.delete(searchKey);
+        }, 300000);
 
     } catch (e) {
-        console.error("SUBLKDL Error:", e);
+        console.error("SUBLK Error:", e);
         await reply(`❌ *Error:* ${e.message}`);
     }
 });
@@ -594,7 +698,7 @@ cmd({
     pattern: "mvcard",
     react: '🎴',
     category: "movie",
-    desc: "Get detailed movie information card",
+    desc: "Get detailed movie information card from IMDb",
     use: ".mvcard <movie name>",
     filename: __filename
 },
@@ -611,7 +715,7 @@ async (zanta, mek, m, { from, q, reply }) => {
 
         let imageUrl = data.Poster !== 'N/A' ? data.Poster : BOT_LOGO;
 
-        // Try to get image from alternative source
+        // Try alternative image source if poster not available
         if (data.Poster === 'N/A') {
             try {
                 const searchRes = await fetchJson(`https://tharuzz-movie-api.vercel.app/api/cinesub/search?query=${encodeURIComponent(q)}`);
