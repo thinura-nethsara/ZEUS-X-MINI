@@ -1,28 +1,82 @@
 const { cmd, commands } = require('../command');
 const config = require('../config');
-const aliveMsg = require('./aliveMsg');
-const axios = require('axios'); 
+const axios = require('axios');
 
-const CHANNEL_JID = "120363425542933159@newsletter"; 
+const CHANNEL_JID = "120363425542933159@newsletter";
+
+// ============================================
+// 🟢 ALIVE MESSAGE FUNCTION - ඇතුලටම එකතු කළා
+// ============================================
+function getAliveMessage(botInfo = {}) {
+    // ශ්‍රී ලාංකික වේලාව (UTC+5:30)
+    const now = new Date();
+    const sriLankaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    
+    const date = sriLankaTime.toLocaleDateString('en-US', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+    });
+    const time = sriLankaTime.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit', 
+        hour12: false 
+    });
+
+    // Dynamic Greeting (ශ්‍රී ලාංකික වේලාව අනුව)
+    const hour = sriLankaTime.getHours();
+    let greeting = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ ☀️";
+    if (hour >= 12 && hour < 17) greeting = "ɢᴏᴏᴅ ᴀꜰᴛᴇʀɴᴏᴏɴ 🌤️";
+    else if (hour >= 17 && hour < 21) greeting = "ɢᴏᴏᴅ ᴇᴠᴇɴɪɴɢ 🌅";
+    else if (hour >= 21 || hour < 5) greeting = "ɢᴏᴏᴅ ɴɪɢʜᴛ 🌙";
+
+    // Uptime
+    const uptimeSec = botInfo.uptime || 0;
+    const days = Math.floor(uptimeSec / 86400);
+    const hours = Math.floor((uptimeSec % 86400) / 3600);
+    const mins = Math.floor((uptimeSec % 3600) / 60);
+    const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
+
+    // Config එකෙන් Prefix එක Auto Detect
+    const prefix = config.DEFAULT_PREFIX || botInfo.prefix || '/';
+
+    return `
+◈◈◈◈◈◈◈◈◈◈◈
+✦ ─── *${botInfo.botName || 'ZEUS XMD'}* ─── ✦
+◈◈◈◈◈◈◈◈◈◈◈
+${greeting} ✨
+\`✦  ᴘʀᴇꜰɪx   :  ${prefix}\`
+\`✦  ᴅᴀᴛᴇ     :  ${date}\`
+\`✦  ᴛɪᴍᴇ     :  ${time}\`
+\`✦  ᴜᴘᴛɪᴍᴇ  :  ${uptimeStr}\`
+◈◈◈◈◈◈◈◈◈◈◈
+*“ ʀᴇᴀᴅʏ ᴛᴏ ᴀꜱꜱɪꜱᴛ ”*
+*⚡ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴇᴜꜱ ɪɴᴄ ⚡*
+`;
+}
+// ============================================
 
 // --- 🖼️ IMAGE PRE-LOAD LOGIC ---
 let cachedAliveImage = null;
 
 async function preLoadAliveImage() {
     try {
-        // මෙතනදී config එකේ තියෙන default image එක cache කරගන්නවා
         const imageUrl = config.ALIVE_IMG || "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg//";
         const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
         cachedAliveImage = Buffer.from(response.data);
         console.log("✅ [CACHE] Alive image pre-loaded successfully.");
     } catch (e) {
         console.error("❌ [CACHE] Failed to pre-load alive image:", e.message);
-        cachedAliveImage = null; 
+        cachedAliveImage = null;
     }
 }
 
 preLoadAliveImage();
 
+// ============================================
+// 🟢 ALIVE COMMAND
+// ============================================
 cmd({
     pattern: "alive",
     react: "🤖",
@@ -37,22 +91,28 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
         const prefix = settings.prefix || config.DEFAULT_PREFIX || ".";
         const isButtonsOn = settings.buttons === 'true';
 
-        // Placeholder replace කිරීම
-        const finalMsg = aliveMsg.getAliveMessage()
-            .replace(/{BOT_NAME}/g, botName)
-            .replace(/{OWNER_NUMBER}/g, config.OWNER_NUMBER)
-            .replace(/{PREFIX}/g, prefix);
+        // Uptime ගණනය කිරීම
+        const uptime = process.uptime();
 
+        // ============================================
+        // 🟢 දැන් getAliveMessage function එක CALL කරන්න
+        // ============================================
+        const finalMsg = getAliveMessage({
+            botName: botName,
+            prefix: prefix,
+            uptime: uptime
+        });
+
+        // Voice Message
         try {
-            const aliveVoiceUrl = 'https://zeus-x-md-database.pages.dev/Data/Hii.mpeg'; 
+            const aliveVoiceUrl = 'https://zeus-x-md-database.pages.dev/Data/Hii.mpeg';
             const vResponse = await axios.get(aliveVoiceUrl, { responseType: 'arraybuffer' });
             const vBuffer = Buffer.from(vResponse.data, 'utf-8');
 
-            // voice එක ගිහින් ඉවර වෙනකම් await එකෙන් ඉන්නවා
-            await zanta.sendMessage(from, { 
-                audio: vBuffer, 
-                mimetype: 'audio/mpeg', 
-                ptt: false, 
+            await zanta.sendMessage(from, {
+                audio: vBuffer,
+                mimetype: 'audio/mpeg',
+                ptt: false,
                 fileName: 'Alive.mp3'
             }, { quoted: mek });
 
@@ -60,7 +120,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
             console.error("[ALIVE VOICE ERROR]", voiceError.message);
         }
 
-        // --- 🖼️ IMAGE LOGIC: DB එකේ තියෙන එක මුලින් බලනවා, නැතිනම් Cache/Config පාවිච්චි කරනවා ---
+        // --- 🖼️ IMAGE LOGIC ---
         let imageToDisplay;
         if (settings.botImage && settings.botImage !== "null" && settings.botImage.startsWith("http")) {
             imageToDisplay = { url: settings.botImage };
@@ -71,7 +131,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
         if (isButtonsOn) {
             // --- 🔵 BUTTONS ON MODE ---
             return await zanta.sendMessage(from, {
-                image: imageToDisplay, 
+                image: imageToDisplay,
                 caption: finalMsg,
                 buttons: [
                     { buttonId: prefix + "ping", buttonText: { displayText: "ᴘɪɴɢ" }, type: 1 },
@@ -79,7 +139,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
                     { buttonId: prefix + "settings", buttonText: { displayText: "sᴇᴛᴛɪɴɢs" }, type: 1 },
                     { buttonId: prefix + "help", buttonText: { displayText: "ʜᴇʟᴘᴍᴇ" }, type: 1 }
                 ],
-                headerType: 4, 
+                headerType: 4,
                 contextInfo: {
                     forwardingScore: 999,
                     isForwarded: true,
