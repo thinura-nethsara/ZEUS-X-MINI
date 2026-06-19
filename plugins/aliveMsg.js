@@ -1,5 +1,8 @@
+// Config එක import කරන්න
+const config = require('./config.js'); // ඔයාගේ config file එකේ path එක
+
 function getAliveMessage(botInfo = {}) {
-    // ශ්‍රී ලාංකික වේලාව සඳහා (UTC+5:30)
+    // ශ්‍රී ලාංකික වේලාව
     const now = new Date();
     const sriLankaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
     
@@ -15,7 +18,7 @@ function getAliveMessage(botInfo = {}) {
         hour12: false 
     });
 
-    // Dynamic Greeting (ශ්‍රී ලාංකික වේලාව අනුව)
+    // Dynamic Greeting
     const hour = sriLankaTime.getHours();
     let greeting = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ ☀️";
     if (hour >= 12 && hour < 17) greeting = "ɢᴏᴏᴅ ᴀꜰᴛᴇʀɴᴏᴏɴ 🌤️";
@@ -29,11 +32,12 @@ function getAliveMessage(botInfo = {}) {
     const mins = Math.floor((uptimeSec % 3600) / 60);
     const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
 
-    const prefix = botInfo.prefix || global.BOT_PREFIX || '/';
+    // Config එකෙන් Prefix එක Auto Detect කරන්න
+    const prefix = config.PREFIX || botInfo.prefix || '/';
 
     return `
 ◈◈◈◈◈◈◈◈◈◈◈
-✦ ─── *${botInfo.botName || 'ZEUS XMD'}* ─── ✦
+✦ ─── *${botInfo.botName || config.BOT_NAME || 'ZEUS XMD'}* ─── ✦
 ◈◈◈◈◈◈◈◈◈◈◈
 ${greeting} ✨
 \`✦  ᴘʀᴇꜰɪx   :  ${prefix}\`
