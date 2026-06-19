@@ -1,646 +1,138 @@
-const config = require('../config');
-const { cmd } = require('../command');
-const axios = require('axios');
-const fetch = require('node-fetch');
+const { cmd } = require("../command");
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 
-// ================ MAIN MOVIE COMMAND ================
+const API_KEY = "key_faa62e4037a95cda";
+const BASE_API = "https://mr-thinuzz-api-build.vercel.app/api/sinhalasub";
+
+// Allowed qualities (only these will be shown)
+const ALLOWED_QUALITIES = ["SD 480p", "HD 720p", "FHD 1080p"];
+
+// Provider priority order
+const PROVIDER_PRIORITY = ["DLServer-01", "DLServer-02"];
+
 cmd({
-    pattern: "mv",
-    react: "🔎",
-    alias: ["movie", "film", "cinema"],
-    desc: "Search movies from multiple sources",
-    category: "movie",
+    pattern: "movie",
+    alias: ["film", "sinhalasub"],
+    react: "🎬",
+    desc: "Search movies from Sinhalasub with Memory Protection.",
+    category: "download",
     filename: __filename
-},
-async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
+}, async (bot, mek, m, { from, q, reply }) => {
     try {
-        if (!q) return await reply('*Enter movie name..🎬*');
+        if (!q) return reply("🎬 *ZEUS X MOVIE ZONE*\n\nExample: .movie Avengers");
 
-        const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
-        const isButtonsOn = settings.buttons === 'true';
-        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
+        // Search movies
+        const searchRes = await axios.get(`${BASE_API}?keyword=${encodeURIComponent(q)}&apiKey=${API_KEY}`).catch(() => null);
+        if (!searchRes || !searchRes.data.status || !searchRes.data.data.length) return reply("❌ කිසිදු ප්‍රතිඵලයක් හමු නොවීය.");
 
-        const sources = [
-            { name: "CINESUBZ", cmd: "cine" },
-            { name: "SINHALASUB", cmd: "sinhalasub" },
-            { name: "SUBLK", cmd: "sublk" }
-        ];
-
-        const caption = `_*${botName} MOVIE SYSTEM 🎬*_\n\n*\`🔍Input :\`* ${q}\n\n_*🌟 Select your preferred movie download site*_`;
-
-        if (isButtonsOn) {
-            const buttons = sources.map(src => ({
-                buttonId: prefix + src.cmd + ' ' + q,
-                buttonText: { displayText: `🎬 ${src.name}` },
-                type: 1
-            }));
-
-            buttons.push({
-                buttonId: prefix + 'menu',
-                buttonText: { displayText: '🔙 Menu' },
-                type: 1
-            });
-
-            await conn.sendMessage(from, {
-                image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
-                caption: caption,
-                footer: config.FOOTER || `© ${botName}`,
-                buttons: buttons,
-                headerType: 4
-            }, { quoted: mek });
-        } else {
-            let textMsg = caption + '\n\n*Reply with number:*\n';
-            sources.forEach((src, i) => {
-                textMsg += `\n${i+1}. ${src.name}`;
-            });
-            textMsg += `\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_`;
-
-            const sentMsg = await conn.sendMessage(from, {
-                image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
-                caption: textMsg
-            }, { quoted: mek });
-
-            // ===== FIXED: NUMBER REPLY LISTENER =====
-            const listener = async (update) => {
-                try {
-                    const msgUpdate = update.messages[0];
-                    if (!msgUpdate || !msgUpdate.message) return;
-
-                    const body = msgUpdate.message.conversation || 
-                               msgUpdate.message.extendedTextMessage?.text;
-
-                    if (!body) return;
-
-                    const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
-                    const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
-
-                    console.log("📝 [MV] Reply received:", body, "IsReply:", isReplyToBot);
-
-                    if (isReplyToBot && body.match(/^[1-3]$/)) {
-                        const index = parseInt(body) - 1;
-                        if (index >= 0 && index < sources.length) {
-                            bot.ev.off('messages.upsert', listener);
-                            const selectedCmd = sources[index].cmd;
-                            await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
-                            // Execute the command
-                            await conn.ev.emit('messages.upsert', {
-                                messages: [{
-                                    key: { remoteJid: from },
-                                    message: {
-                                        extendedTextMessage: {
-                                            text: `${prefix}${selectedCmd} ${q}`,
-                                            contextInfo: { stanzaId: msgUpdate.key.id }
-                                        }
-                                    }
-                                }]
-                            });
-                        }
-                    }
-                } catch (err) {
-                    console.error("MV Listener Error:", err);
-                }
-            };
-
-            conn.ev.on('messages.upsert', listener);
-            setTimeout(() => {
-                conn.ev.off('messages.upsert', listener);
-            }, 300000);
-        }
-
-    } catch (e) {
-        console.error("Movie Error:", e);
-        reply('❌ Error occurred');
-    }
-});
-
-// ================ FIXED CINESUBZ SEARCH ================
-cmd({
-    pattern: "cine",
-    react: '🔎',
-    category: "movie",
-    alias: ["cz"],
-    desc: "cinesubz.co movie search",
-    use: ".cine movie_name",
-    filename: __filename
-},
-async (conn, mek, m, { from, prefix, q, reply, userSettings }) => {
-    try {
-        if (!q) return await reply('*Please give me a movie name 🎬*');
-
-        const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
-        const isButtonsOn = settings.buttons === 'true';
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
-
-        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/cinesubz/search?query=${encodeURIComponent(q)}&apiKey=key_faa62e4037a95cda`;
-        const response = await axios.get(apiUrl);
-        const result = response.data;
-
-        console.log("🔍 [CINE] API Response:", JSON.stringify(result, null, 2));
-
-        if (!result.status || !result.data) {
-            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-            return await conn.sendMessage(from, { text: '*No results found ❌*' }, { quoted: mek });
-        }
-
-        // ===== FIXED: Get results correctly =====
-        let results = [];
-        if (result.data.all && Array.isArray(result.data.all) && result.data.all.length > 0) {
-            results = result.data.all;
-        } else if (result.data.movies && Array.isArray(result.data.movies) && result.data.movies.length > 0) {
-            results = result.data.movies;
-        } else if (Array.isArray(result.data)) {
-            results = result.data;
-        }
-        
-        console.log("📊 [CINE] Results count:", results.length);
-
-        if (results.length === 0) {
-            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-            return await conn.sendMessage(from, { text: '*No results found ❌*' }, { quoted: mek });
-        }
-
-        const totalResults = result.total_results || results.length;
-        const caption = `*🎬 CINESUBZ RESULTS*\n\n*🔍 Search:* ${q}\n*📊 Found:* ${totalResults}\n\n*Select a movie below:*`;
-
-        // ===== FIXED: Process results safely =====
-        const movieList = [];
-        results.slice(0, 10).forEach((item, index) => {
-            const rawTitle = item.title || item.Title || 'Unknown Movie';
-            let cleanTitle = rawTitle;
-            if (typeof rawTitle === 'string') {
-                cleanTitle = rawTitle
-                    .replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "")
-                    .replace(/Sinhala Subtitle \| සිංහල උපසිරැසි සමඟ/g, "")
-                    .replace(/Sinhala Subtitles/g, "")
-                    .trim();
-            }
-            
-            const typeBadge = item.type === "TV" ? "📺" : "🎬";
-            const year = item.year || item.Year || '';
-            const link = item.link || item.Link || '';
-            
-            if (!link) return;
-            
-            let displayTitle = cleanTitle.substring(0, 30);
-            if (cleanTitle.length > 30) displayTitle += '...';
-            if (year) displayTitle += ` (${year})`;
-            
-            movieList.push({
-                title: displayTitle,
-                link: link,
-                type: typeBadge,
-                year: year,
-                cleanTitle: cleanTitle,
-                index: index + 1
-            });
+        const results = searchRes.data.data.slice(0, 10);
+        let msg = `🎬 *ZEUS X MOVIE ZONE* 🎬\n\n`;
+        results.forEach((res, index) => { 
+            msg += `${index + 1}️⃣ *${res.Title}*\n`;
+            msg += `   📊 ${res.Quality} | ⭐ ${res.Rating}\n\n`;
         });
+        msg += `*Reply with the number to see quality list.* \n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
 
-        console.log("🎬 [CINE] Movie List:", JSON.stringify(movieList, null, 2));
-
-        if (movieList.length === 0) {
-            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-            return await conn.sendMessage(from, { text: '*No valid results found ❌*' }, { quoted: mek });
-        }
-
-        if (isButtonsOn) {
-            // ===== BUTTON MODE =====
-            const buttons = movieList.map(movie => ({
-                buttonId: `${prefix}cinedl2 ${movie.link}`,
-                buttonText: { displayText: `${movie.type} ${movie.title}` },
-                type: 1
-            }));
-
-            buttons.push({
-                buttonId: prefix + 'mv ' + q,
-                buttonText: { displayText: '🔙 Back' },
-                type: 1
-            });
-
-            await conn.sendMessage(from, {
-                image: { url: 'https://i.ibb.co/NsV2XcK/movie-poster.png' },
-                caption: caption,
-                footer: config.FOOTER,
-                buttons: buttons,
-                headerType: 4
-            }, { quoted: mek });
-        } else {
-            // ===== TEXT MODE =====
-            let textMsg = caption + '\n\n*Reply with number:*\n';
-            movieList.forEach((movie) => {
-                textMsg += `\n${movie.index}. ${movie.type} ${movie.cleanTitle}${movie.year ? ` (${movie.year})` : ''}`;
-            });
-            textMsg += `\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ZEUS-X-MINI </>_`;
-
-            const sentMsg = await conn.sendMessage(from, {
-                image: { url: 'https://i.ibb.co/NsV2XcK/movie-poster.png' },
-                caption: textMsg
-            }, { quoted: mek });
-
-            // ===== FIXED: NUMBER REPLY LISTENER =====
-            const listener = async (update) => {
-                try {
-                    const msgUpdate = update.messages[0];
-                    if (!msgUpdate || !msgUpdate.message) return;
-
-                    const body = msgUpdate.message.conversation || 
-                               msgUpdate.message.extendedTextMessage?.text;
-
-                    if (!body) return;
-
-                    const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
-                    const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
-
-                    console.log("📝 [CINE] Reply received:", body, "IsReply:", isReplyToBot);
-
-                    if (isReplyToBot && body.match(/^\d+$/)) {
-                        const index = parseInt(body) - 1;
-                        if (index >= 0 && index < movieList.length) {
-                            conn.ev.off('messages.upsert', listener);
-                            const selected = movieList[index];
-                            await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
-                            // Execute the command
-                            await conn.ev.emit('messages.upsert', {
-                                messages: [{
-                                    key: { remoteJid: from },
-                                    message: {
-                                        extendedTextMessage: {
-                                            text: `${prefix}cinedl2 ${selected.link}`,
-                                            contextInfo: { stanzaId: msgUpdate.key.id }
-                                        }
-                                    }
-                                }]
-                            });
-                        }
-                    }
-                } catch (err) {
-                    console.error("CINE Listener Error:", err);
-                }
-            };
-
-            conn.ev.on('messages.upsert', listener);
-            setTimeout(() => {
-                conn.ev.off('messages.upsert', listener);
-            }, 300000);
-        }
-
-    } catch (e) {
-        console.log("CINE Error:", e);
-        await conn.sendMessage(from, { 
-            text: '🚩 *Error occurred while fetching data!*\n\n' + e.message 
+        const sentMsg = await bot.sendMessage(from, { 
+            image: { url: results[0].Img || "https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png" }, 
+            caption: msg 
         }, { quoted: mek });
-    }
-});
 
-// ================ CINESUBZ MOVIE INFO ================
-cmd({
-    pattern: "cinedl2",
-    react: '🎥',
-    desc: "Get movie download links",
-    filename: __filename
-},
-async (conn, mek, m, { from, q, prefix, reply, userSettings }) => {
-    try {
-        if (!q) return await reply('*Please provide a movie link!*');
-
-        const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
-        const isButtonsOn = settings.buttons === 'true';
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
-
-        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/cinesubz/movie?url=${encodeURIComponent(q)}&apiKey=key_faa62e4037a95cda`;
-        const res = await axios.get(apiUrl);
-        const movie = res.data.data;
-
-        if (!movie) {
-            return await conn.sendMessage(from, { text: '🚩 *Error fetching movie details!*' }, { quoted: mek });
-        }
-
-        let cleanTitle = movie.maintitle || movie.title || 'N/A';
-        if (typeof cleanTitle === 'string') {
-            cleanTitle = cleanTitle.replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "").trim();
-        }
-
-        let rating = 'N/A';
-        if (movie.imdb?.value && movie.imdb.value !== "00") {
-            rating = movie.imdb.value;
-        } else if (movie.rating?.value && movie.rating.value !== "00") {
-            rating = movie.rating.value;
-        }
-
-        let genres = 'N/A';
-        if (movie.category && Array.isArray(movie.category) && movie.category.length > 0) {
-            genres = movie.category.join(', ');
-        }
-
-        let msg = `*🍿 ${cleanTitle}*\n\n`;
-        msg += `*📅 Year:* ${movie.dateCreate || movie.year || 'N/A'}\n`;
-        msg += `*⭐ Rating:* ${rating}\n`;
-        msg += `*⏰ Runtime:* ${movie.runtime || 'N/A'}\n`;
-        msg += `*🎭 Genres:* ${genres}\n`;
-        msg += `*🌍 Country:* ${movie.country || 'N/A'}\n\n`;
-        msg += `*📥 Select quality:*`;
-
-        const qualityList = [];
-        const buttons = [];
-
-        if (movie.downloadUrl && Array.isArray(movie.downloadUrl) && movie.downloadUrl.length > 0) {
-            const uniqueLinks = new Map();
-            movie.downloadUrl.forEach((dl) => {
-                if (!dl || !dl.quality) return;
-                const qualityKey = dl.quality.toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (!uniqueLinks.has(qualityKey)) {
-                    uniqueLinks.set(qualityKey, dl);
-                }
-            });
-            
-            let qualityIndex = 0;
-            Array.from(uniqueLinks.values()).forEach((dl) => {
-                let qualityName = dl.quality || 'Unknown';
-                qualityName = qualityName.replace("BluRay", "").trim();
-                const link = dl.link || dl.url || '';
-                if (link) {
-                    qualityIndex++;
-                    const btnId = `${prefix}cinemovie ${link}±${cleanTitle}±${movie.mainImage || movie.posterUrl || ''}±${qualityName}`;
-                    
-                    buttons.push({
-                        buttonId: btnId,
-                        buttonText: { displayText: `🎬 ${qualityName} (${dl.size || 'N/A'})` },
-                        type: 1
-                    });
-                    
-                    qualityList.push({
-                        index: qualityIndex,
-                        name: qualityName,
-                        size: dl.size || 'N/A',
-                        btnId: btnId
-                    });
-                }
-            });
-        }
-
-        if (qualityList.length === 0) {
-            return await reply('*No download links available for this movie!*');
-        }
-
-        if (isButtonsOn) {
-            // ===== BUTTON MODE =====
-            buttons.push({
-                buttonId: prefix + 'cdetails ' + q,
-                buttonText: { displayText: '📋 Full Details' },
-                type: 1
-            });
-
-            buttons.push({
-                buttonId: prefix + 'cine ' + cleanTitle.split(' ').slice(0, 3).join(' '),
-                buttonText: { displayText: '🔙 Back' },
-                type: 1
-            });
-
-            const posterUrl = movie.mainImage || movie.posterUrl || 'https://i.ibb.co/NsV2XcK/movie-poster.png';
-
-            await conn.sendMessage(from, {
-                image: { url: posterUrl },
-                caption: msg,
-                footer: config.FOOTER,
-                buttons: buttons,
-                headerType: 4
-            }, { quoted: mek });
-        } else {
-            // ===== TEXT MODE =====
-            let textMsg = msg + '\n\n*Reply with number:*\n';
-            qualityList.forEach((q) => {
-                textMsg += `\n${q.index}. ${q.name} (${q.size})`;
-            });
-            textMsg += `\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ZEUS-X-MINI </>_`;
-
-            const posterUrl = movie.mainImage || movie.posterUrl || 'https://i.ibb.co/NsV2XcK/movie-poster.png';
-
-            const sentMsg = await conn.sendMessage(from, {
-                image: { url: posterUrl },
-                caption: textMsg
-            }, { quoted: mek });
-
-            // ===== FIXED: NUMBER REPLY LISTENER =====
-            const listener = async (update) => {
-                try {
-                    const msgUpdate = update.messages[0];
-                    if (!msgUpdate || !msgUpdate.message) return;
-
-                    const body = msgUpdate.message.conversation || 
-                               msgUpdate.message.extendedTextMessage?.text;
-
-                    if (!body) return;
-
-                    const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
-                    const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
-
-                    console.log("📝 [CINEDL2] Reply received:", body, "IsReply:", isReplyToBot);
-
-                    if (isReplyToBot && body.match(/^\d+$/)) {
-                        const index = parseInt(body) - 1;
-                        if (index >= 0 && index < qualityList.length) {
-                            conn.ev.off('messages.upsert', listener);
-                            const selected = qualityList[index];
-                            await conn.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
-                            // Execute the download command
-                            await conn.ev.emit('messages.upsert', {
-                                messages: [{
-                                    key: { remoteJid: from },
-                                    message: {
-                                        extendedTextMessage: {
-                                            text: selected.btnId,
-                                            contextInfo: { stanzaId: msgUpdate.key.id }
-                                        }
-                                    }
-                                }]
-                            });
-                        }
-                    }
-                } catch (err) {
-                    console.error("CINEDL2 Listener Error:", err);
-                }
-            };
-
-            conn.ev.on('messages.upsert', listener);
-            setTimeout(() => {
-                conn.ev.off('messages.upsert', listener);
-            }, 300000);
-        }
-
-    } catch (e) {
-        console.log("CINEDL2 Error:", e);
-        await conn.sendMessage(from, { text: '🚩 *Error occurred!*\n\n' + e.message }, { quoted: mek });
-    }
-});
-
-// ================ CINESUBZ DOWNLOAD ================
-cmd({
-    pattern: "cinemovie",
-    react: "⬇️",
-    dontAddCommandList: true,
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply }) => {
-    try {
-        if (!q) return await reply('*📍 Please provide the movie link!*');
-
-        const parts = q.split("±");
-        const movieUrl = parts[0] || '';
-        const movieName = parts[1] || 'Movie';
-        const thumbUrl = parts[2] || '';
-        const quality = parts[3] || '';
-
-        if (!movieUrl) return await reply('*⚠️ Invalid Format!*');
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
-
-        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/cinesubz/download?url=${encodeURIComponent(movieUrl)}&apiKey=key_faa62e4037a95cda`;
-        const response = await axios.get(apiUrl);
-
-        if (!response?.data?.status || !response?.data?.data?.downloadUrls) {
-            return await reply('*❌ Download link not found!*');
-        }
-
-        const directLink = response.data.data.downloadUrls.find(item => 
-            item.url && !item.url.includes("t.me") && !item.url.includes("telegram")
-        );
-
-        if (!directLink) {
-            return await reply('*❌ No direct download link available!*');
-        }
-
-        let cleanName = movieName;
-        if (typeof cleanName === 'string') {
-            cleanName = cleanName
-                .replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "")
-                .replace(/Sinhala Subtitle \| සිංහල උපසිරැසි සමඟ/g, "")
-                .trim();
-        }
-
-        let thumbBuffer = null;
-        if (thumbUrl && thumbUrl !== 'undefined') {
+        const movieListener = async (update) => {
             try {
-                const thumbRes = await fetch(thumbUrl);
-                if (thumbRes.ok) {
-                    thumbBuffer = await thumbRes.buffer();
+                const msgUpdate = update.messages[0];
+                if (!msgUpdate.message) return;
+                const body = msgUpdate.message.conversation || msgUpdate.message.extendedTextMessage?.text;
+                const isReplyToBot = msgUpdate.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
+
+                if (isReplyToBot && !isNaN(body)) {
+                    const index = parseInt(body) - 1;
+                    const selectedMovie = results[index];
+                    if (selectedMovie) {
+                        bot.ev.off('messages.upsert', movieListener);
+                        await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
+
+                        // Get movie details
+                        const infoRes = await axios.get(`${BASE_API}?url=${encodeURIComponent(selectedMovie.Link)}&apiKey=${API_KEY}`).catch(() => null);
+                        if (!infoRes || !infoRes.data.status) return reply("❌ No download links found.");
+
+                        const infoData = infoRes.data.data;
+                        
+                        // Filter only allowed qualities and preferred providers
+                        let filteredLinks = infoData.download_links.filter(link => {
+                            if (!ALLOWED_QUALITIES.includes(link.quality)) return false;
+                            if (link.provider === "Telegram") return false;
+                            return PROVIDER_PRIORITY.includes(link.provider);
+                        });
+
+                        // If no links from preferred providers, get any allowed quality (except Telegram)
+                        if (filteredLinks.length === 0) {
+                            filteredLinks = infoData.download_links.filter(link => {
+                                if (!ALLOWED_QUALITIES.includes(link.quality)) return false;
+                                if (link.provider === "Telegram") return false;
+                                return true;
+                            });
+                        }
+
+                        if (filteredLinks.length === 0) return reply("❌ No compatible download links found.");
+
+                        // Sort by provider priority
+                        filteredLinks.sort((a, b) => {
+                            return PROVIDER_PRIORITY.indexOf(a.provider) - PROVIDER_PRIORITY.indexOf(b.provider);
+                        });
+
+                        let infoMsg = `🎬 *${infoData.title}*\n\n*Available Qualities:* \n\n`;
+                        filteredLinks.forEach((dl, i) => { 
+                            infoMsg += `${i + 1}️⃣ ${dl.quality} (${dl.size}) - ${dl.provider}\n`; 
+                        });
+                        infoMsg += `\n> *Reply with the number to download.*`;
+
+                        const infoSent = await bot.sendMessage(from, { 
+                            image: { url: infoData.poster || selectedMovie.Img }, 
+                            caption: infoMsg 
+                        }, { quoted: msgUpdate });
+
+                        const qualityListener = async (qUpdate) => {
+                            try {
+                                const qMsg = qUpdate.messages[0];
+                                const qBody = qMsg.message?.conversation || qMsg.message?.extendedTextMessage?.text;
+                                if (qMsg.message?.extendedTextMessage?.contextInfo?.stanzaId === infoSent.key.id && !isNaN(qBody)) {
+                                    const selectedDl = filteredLinks[parseInt(qBody) - 1];
+                                    if (selectedDl) {
+                                        bot.ev.off('messages.upsert', qualityListener);
+                                        await bot.sendMessage(from, { react: { text: '⬇️', key: qMsg.key } });
+
+                                        const waitMsg = await reply("📥 *Downloading...* \n*Mode: Direct Stream*");
+
+                                        // Send video directly using URL (streaming)
+                                        await bot.sendMessage(from, { 
+                                            video: { url: selectedDl.url },
+                                            caption: `🎬 *${infoData.title}*\n📊 *Quality:* ${selectedDl.quality}\n⚖️ *Size:* ${selectedDl.size}\n📦 *Provider:* ${selectedDl.provider}\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`
+                                        }, { 
+                                            quoted: qMsg,
+                                            mediaUploadTimeoutMs: 1000 * 60 * 60,
+                                            generateHighQualityLinkPreview: false 
+                                        });
+
+                                        // Force memory cleanup
+                                        if (global.gc) global.gc();
+
+                                        await bot.sendMessage(from, { delete: waitMsg.key }).catch(() => null);
+                                        await bot.sendMessage(from, { react: { text: '✅', key: qMsg.key } });
+                                    }
+                                }
+                            } catch (err) { 
+                                console.error(err);
+                                reply("❌ Error: " + err.message);
+                            }
+                        };
+                        bot.ev.on('messages.upsert', qualityListener);
+                    }
                 }
-            } catch (e) { /* ignore */ }
-        }
-
-        await conn.sendMessage(from, { text: '*Uploading your movie..⬆️*' }, { quoted: mek });
-
-        const targetJid = config.JID || from;
-
-        await conn.sendMessage(targetJid, {
-            document: { url: directLink.url },
-            mimetype: 'video/mp4',
-            fileName: `🎬 ${cleanName}.mp4`,
-            caption: `*🎬 Name:* ${cleanName}\n\n*\`${quality}\`*\n\n${config.NAME || 'ZEUS-X-MINI'}`,
-            jpegThumbnail: thumbBuffer
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
-
-    } catch (e) {
-        console.log("Download Error:", e);
-        await reply(`*❌ Error:* ${e.message}`);
-        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-    }
+            } catch (err) { console.error(err); }
+        };
+        bot.ev.on('messages.upsert', movieListener);
+    } catch (e) { console.error(e); }
 });
-
-// ================ CINESUBZ DETAILS ================
-cmd({
-    pattern: "cdetails",
-    react: '🎬',
-    desc: "Movie details sender from Cinesubz",
-    filename: __filename
-},
-async (conn, mek, m, { from, q, prefix, reply }) => {
-    try {
-        if (!q) return await reply('⚠️ *Please provide the movie URL!*');
-
-        let sadas = await fetchJson(`https://mr-thinuzz-api-build.vercel.app/api/cinesubz/movie?url=${encodeURIComponent(q)}&apiKey=key_faa62e4037a95cda`);
-
-        if (!sadas || !sadas.status || !sadas.data) {
-            return await conn.sendMessage(from, { text: '🚩 *Error: Could not fetch movie details!*' }, { quoted: mek });
-        }
-
-        const movie = sadas.data;
-
-        let mainTitle = movie.maintitle || movie.title || 'N/A';
-        if (typeof mainTitle === 'string') {
-            mainTitle = mainTitle.replace(/Sinhala Subtitles \| සිංහල උපසිරැසි සමඟ/g, "").trim();
-        }
-
-        let ratingValue = 'N/A';
-        if (movie.imdb?.value && movie.imdb.value !== "00") {
-            ratingValue = movie.imdb.value;
-        } else if (movie.rating?.value && movie.rating.value !== "00") {
-            ratingValue = movie.rating.value;
-        }
-
-        let runtimeText = movie.runtime || 'N/A';
-        if (typeof runtimeText === 'string' && runtimeText.startsWith("IMDb:")) {
-            runtimeText = runtimeText.replace("IMDb:", "").trim();
-        }
-
-        let genres = 'N/A';
-        if (movie.category && Array.isArray(movie.category) && movie.category.length > 0) {
-            genres = movie.category.join(', ');
-        }
-
-        let directorName = 'N/A';
-        if (movie.director?.name) {
-            if (Array.isArray(movie.director.name)) {
-                directorName = movie.director.name.join(', ');
-            } else {
-                directorName = movie.director.name;
-            }
-        }
-
-        let msg = `*☘️ 𝗧ɪᴛʟᴇ ➮* *_${mainTitle}_*
-
-*📅 𝗬ᴇᴀʀ ➮* _${movie.dateCreate || movie.year || 'N/A'}_
-*⭐ 𝗜𝗠ᴅʙ 𝗥ᴀᴛɪɴɢ ➮* _${ratingValue}_
-*⏰ 𝗥ᴜɴᴛɪᴍᴇ ➮* _${runtimeText}_
-*🌍 𝗖𝗼ᴜɴᴛʀʏ ➮* _${movie.country || 'N/A'}_
-*🎭 𝗚𝗲𝗻𝗿𝗲𝘀 ➮* _${genres}_
-*🎬 𝗗ɪʀᴇᴄᴛᴏʀ ➮* _${directorName}_
-
-✨ *Follow us:* ${config.FOOTER || 'ZEUS-X-MINI'}`;
-
-        let posterUrl = movie.mainImage;
-        if (!posterUrl && movie.imageUrls && Array.isArray(movie.imageUrls) && movie.imageUrls.length > 0) {
-            posterUrl = movie.imageUrls[0];
-        }
-        if (!posterUrl) {
-            posterUrl = 'https://i.ibb.co/NsV2XcK/movie-poster.png';
-        }
-
-        const buttons = [{
-            buttonId: prefix + 'cinedl2 ' + q,
-            buttonText: { displayText: '🔙 Back to Downloads' },
-            type: 1
-        }];
-
-        await conn.sendMessage(from, {
-            image: { url: posterUrl },
-            caption: msg,
-            footer: config.FOOTER,
-            buttons: buttons,
-            headerType: 4
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✔️', key: mek.key } });
-
-    } catch (error) {
-        console.error('Error:', error);
-        await conn.sendMessage(from, '⚠️ *An error occurred while fetching details.*', { quoted: mek });
-    }
-});
-
-// ================ HELPER FUNCTION ================
-async function fetchJson(url) {
-    const res = await fetch(url);
-    return await res.json();
-}
