@@ -47,9 +47,6 @@ async (conn, m, mek, {
         const isPre = await checkPremium(senderNumber);
         const isFree = await checkFree();
 
-        console.log("📦 [SINHALASUB] Sender Number:", senderNumber);
-        console.log("✅ [SINHALASUB] Is Premium:", isPre);
-
         if (!isFree && !isMe && !isPre) {
             await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
             return await conn.sendMessage(from, {
@@ -80,8 +77,11 @@ async (conn, m, mek, {
             return await conn.sendMessage(from, { text: '*No results found ❌*' }, { quoted: mek });
         }
 
-        let srh = [];
-        result.data.forEach((movie) => {
+        // Create search results as buttons instead of list
+        let buttons = [];
+        let buttonText = [];
+        
+        result.data.slice(0, 10).forEach((movie) => {
             // Clean title
             let cleanTitle = movie.Title
                 .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
@@ -89,28 +89,44 @@ async (conn, m, mek, {
                 .trim();
             
             const yearInfo = movie.Year ? ` (${movie.Year})` : '';
-            const ratingInfo = movie.Rating && movie.Rating !== "N/A" ? ` ⭐${movie.Rating}` : '';
             
-            srh.push({
-                title: `${cleanTitle}${yearInfo}${ratingInfo}`,
-                rowId: `${prefix}sinhalasubinfo ${movie.Link}`
+            buttons.push({
+                buttonId: `${prefix}sinhalasubinfo ${movie.Link}`,
+                buttonText: { displayText: `${cleanTitle}${yearInfo}` },
+                type: 1
             });
         });
 
-        const sections = [{
-            title: `Sinhalasub.lk Search Results (${result.total_results || result.data.length} found)`,
-            rows: srh.slice(0, 20)
-        }];
+        // Split buttons into chunks of 3 for better display
+        const chunkSize = 3;
+        let buttonChunks = [];
+        for (let i = 0; i < buttons.length; i += chunkSize) {
+            buttonChunks.push(buttons.slice(i, i + chunkSize));
+        }
 
-        const listMessage = {
-            text: `_*SINHALASUB MOVIE SEARCH RESULTS 🎬*_\n\n*\`Input :\`* ${q}\n*Total Results:* ${result.total_results || result.data.length}\n\n*Select a movie from the list below to download.*`,
-            footer: config.FOOTER,
-            title: 'Sinhalasub Movie Downloader',
-            buttonText: 'Click here to view',
-            sections
-        };
+        const msg = `_*SINHALASUB MOVIE SEARCH RESULTS 🎬*_\n\n*\`Input :\`* ${q}\n*Total Results:* ${result.total_results || result.data.length}\n\n*Select a movie from the buttons below to download.*`;
 
-        await conn.listMessage(from, listMessage, mek);
+        // Send first chunk as buttons
+        if (buttonChunks.length > 0) {
+            const buttonMessage = {
+                text: msg,
+                footer: config.FOOTER,
+                buttons: buttonChunks[0],
+                headerType: 4
+            };
+            await conn.buttonMessage(from, buttonMessage, mek);
+        }
+
+        // Send remaining chunks as separate messages
+        for (let i = 1; i < buttonChunks.length; i++) {
+            const buttonMessage = {
+                text: `_*More Results...*_`,
+                footer: config.FOOTER,
+                buttons: buttonChunks[i],
+                headerType: 4
+            };
+            await conn.buttonMessage(from, buttonMessage, mek);
+        }
 
     } catch (e) {
         console.log("SINHALASUB Command Error:", e);
@@ -156,7 +172,7 @@ async (conn, m, mek, { from, q, isMe, prefix, reply }) => {
         let rows = [];
         rows.push({
             buttonId: prefix + 'sinhalasubdetails ' + `${q}`,
-            buttonText: { displayText: 'Details Card\n' },
+            buttonText: { displayText: '📋 Details Card' },
             type: 1
         });
 
@@ -180,7 +196,7 @@ async (conn, m, mek, { from, q, isMe, prefix, reply }) => {
                 rows.push({
                     buttonId: `${prefix}sinhalasubdl ${dl.url}±${movie.title}±${movie.poster}±${dl.quality}`,
                     buttonText: {
-                        displayText: `${dl.quality} - ${dl.size} (${dl.provider})`
+                        displayText: `⬇️ ${dl.quality} - ${dl.size}`
                     },
                     type: 1
                 });
@@ -192,7 +208,7 @@ async (conn, m, mek, { from, q, isMe, prefix, reply }) => {
                 rows.push({
                     buttonId: `${prefix}sinhalasubdl ${dl.url}±${movie.title}±${movie.poster}±${dl.quality}`,
                     buttonText: {
-                        displayText: `${dl.quality} - ${dl.size} (${dl.provider})`
+                        displayText: `⬇️ ${dl.quality} - ${dl.size}`
                     },
                     type: 1
                 });
@@ -247,7 +263,7 @@ cmd({
             }, { quoted: mek });
         }
 
-        // Direct download - No need to convert Pixeldrain as we're using the URL directly
+        // Direct download
         let direct_link = movieUrl;
 
         console.log("📥 Download URL:", direct_link);
