@@ -2,6 +2,7 @@ const { cmd } = require("../command");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const { Readable } = require("stream");
 
 const API_KEY = "key_faa62e4037a95cda";
 const BASE_API = "https://mr-thinuzz-api-build.vercel.app/api/sinhalasub";
@@ -104,23 +105,72 @@ cmd({
                                         bot.ev.off('messages.upsert', qualityListener);
                                         await bot.sendMessage(from, { react: { text: '⬇️', key: qMsg.key } });
 
-                                        const waitMsg = await reply("📥 *Downloading...* \n*Mode: Direct Stream*");
+                                        const waitMsg = await reply("📥 *Downloading & Uploading...*\n*This may take a few moments...*");
 
-                                        // Send video directly using URL (streaming)
-                                        await bot.sendMessage(from, { 
-                                            video: { url: selectedDl.url },
-                                            caption: `🎬 *${infoData.title}*\n📊 *Quality:* ${selectedDl.quality}\n⚖️ *Size:* ${selectedDl.size}\n📦 *Provider:* ${selectedDl.provider}\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`
-                                        }, { 
-                                            quoted: qMsg,
-                                            mediaUploadTimeoutMs: 1000 * 60 * 60,
-                                            generateHighQualityLinkPreview: false 
-                                        });
+                                        try {
+                                            // Download the file
+                                            const response = await axios({
+                                                method: 'get',
+                                                url: selectedDl.url,
+                                                responseType: 'stream'
+                                            });
 
-                                        // Force memory cleanup
-                                        if (global.gc) global.gc();
+                                            // Create temp file path
+                                            const tempFile = path.join(__dirname, `../temp/${Date.now()}_${selectedMovie.Title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`);
+                                            
+                                            // Ensure temp directory exists
+                                            if (!fs.existsSync(path.join(__dirname, '../temp'))) {
+                                                fs.mkdirSync(path.join(__dirname, '../temp'), { recursive: true });
+                                            }
 
-                                        await bot.sendMessage(from, { delete: waitMsg.key }).catch(() => null);
-                                        await bot.sendMessage(from, { react: { text: '✅', key: qMsg.key } });
+                                            // Write stream to file
+                                            const writer = fs.createWriteStream(tempFile);
+                                            response.data.pipe(writer);
+
+                                            await new Promise((resolve, reject) => {
+                                                writer.on('finish', resolve);
+                                                writer.on('error', reject);
+                                            });
+
+                                            // Get file size
+                                            const stats = fs.statSync(tempFile);
+                                            const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+
+                                            // Update wait message
+                                            await bot.sendMessage(from, { 
+                                                text: `📤 *Uploading...*\n📁 Size: ${fileSizeInMB} MB\n⏳ Please wait...`,
+                                                edit: waitMsg.key 
+                                            }).catch(() => null);
+
+                                            // Send as document
+                                            await bot.sendMessage(from, { 
+                                                document: fs.readFileSync(tempFile),
+                                                mimetype: 'video/mp4',
+                                                fileName: `${selectedMovie.Title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`,
+                                                caption: `🎬 *${infoData.title}*\n📊 *Quality:* ${selectedDl.quality}\n⚖️ *Size:* ${selectedDl.size}\n📦 *Provider:* ${selectedDl.provider}\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`
+                                            }, { 
+                                                quoted: qMsg,
+                                                mediaUploadTimeoutMs: 1000 * 60 * 60,
+                                                generateHighQualityLinkPreview: false 
+                                            });
+
+                                            // Clean up temp file
+                                            fs.unlinkSync(tempFile);
+
+                                            // Force memory cleanup
+                                            if (global.gc) global.gc();
+
+                                            await bot.sendMessage(from, { delete: waitMsg.key }).catch(() => null);
+                                            await bot.sendMessage(from, { react: { text: '✅', key: qMsg.key } });
+
+                                        } catch (downloadError) {
+                                            console.error("Download Error:", downloadError);
+                                            await reply(`❌ Download failed: ${downloadError.message}`);
+                                            // Clean up temp file if exists
+                                            if (fs.existsSync(tempFile)) {
+                                                fs.unlinkSync(tempFile);
+                                            }
+                                        }
                                     }
                                 }
                             } catch (err) { 
