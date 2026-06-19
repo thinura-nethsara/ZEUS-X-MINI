@@ -1,5 +1,5 @@
-// Config එක import කරන්න
-const config = require('./config.js'); // ඔයාගේ config file එකේ path එක
+// config.js එක import කරන්න (එකම folder එකේ තියෙනවා නම්)
+const config = require('./config.js');
 
 function getAliveMessage(botInfo = {}) {
     // ශ්‍රී ලාංකික වේලාව
@@ -33,11 +33,12 @@ function getAliveMessage(botInfo = {}) {
     const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
 
     // Config එකෙන් Prefix එක Auto Detect කරන්න
-    const prefix = config.PREFIX || botInfo.prefix || '/';
+    // DEFAULT_PREFIX කියලා තමයි ඔයාගේ config එකේ තියෙන්නේ
+    const prefix = config.DEFAULT_PREFIX || botInfo.prefix || '/';
 
     return `
 ◈◈◈◈◈◈◈◈◈◈◈
-✦ ─── *${botInfo.botName || config.BOT_NAME || 'ZEUS XMD'}* ─── ✦
+✦ ─── *${botInfo.botName || 'ZEUS XMD'}* ─── ✦
 ◈◈◈◈◈◈◈◈◈◈◈
 ${greeting} ✨
 \`✦  ᴘʀᴇꜰɪx   :  ${prefix}\`
