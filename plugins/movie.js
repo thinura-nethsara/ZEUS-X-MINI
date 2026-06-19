@@ -134,18 +134,18 @@ cmd({
 },
 async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
     try {
-        // q එක හරියට parse කරන්න
-        if (!q) return await reply('*Please provide a link!*');
+        if (!q) {
+            return await reply('*Please provide a link!*');
+        }
         
         console.log("🔗 Raw q:", q);
         
-        // Extract the URL from q - Remove the command name if present
+        // Extract the URL from q
         let movieLink = q.trim();
         
         // If q contains the command name, extract only the URL part
         if (movieLink.includes('sinhalasubinfo')) {
             const parts = movieLink.split(' ');
-            // Find the part that looks like a URL
             for (const part of parts) {
                 if (part.includes('http') || part.includes('%')) {
                     movieLink = part;
@@ -154,7 +154,7 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
             }
         }
         
-        // URL decode කරන්න
+        // URL decode
         try {
             movieLink = decodeURIComponent(movieLink);
         } catch (e) {
@@ -169,6 +169,7 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
         
         console.log("🔗 Movie Link:", movieLink);
 
+        // Fetch movie details
         const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(movieLink)}&apiKey=key_13be1374312cdd0a`;
         console.log("📡 API URL:", apiUrl);
         
@@ -182,11 +183,13 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
 
         const movie = sadas.data;
 
+        // Format genres
         let genres = 'N/A';
         if (movie.genres && movie.genres.length > 0) {
             genres = movie.genres.join(', ');
         }
 
+        // Create message
         let msg = `*🍿 𝗧ɪᴛʟᴇ ➮* *_${movie.title || 'N/A'}_*\n\n`;
         msg += `*📅 𝗥ᴇʟᴇᴀꜱᴇᴅ ʏᴇᴀʀ ➮* _${movie.release_date || 'N/A'}_\n`;
         msg += `*⭐ 𝗜𝗠ᴅʙ ʀᴀᴛɪɴɢ ➮* _${movie.imdb_rating || 'N/A'}_\n`;
@@ -220,9 +223,9 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
             type: 1
         });
 
+        // Add download buttons
         if (filteredLinks.length > 0) {
             filteredLinks.forEach((dl) => {
-                // Encode the URL properly
                 const encodedUrl = encodeURIComponent(dl.url);
                 const encodedTitle = encodeURIComponent(movie.title || 'Movie');
                 const encodedPoster = encodeURIComponent(movie.poster || '');
@@ -254,6 +257,8 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
         // Send as image with buttons
         const posterUrl = movie.poster || 'https://sinhalasub.lk/wp-content/uploads/2021/09/cropped-cropped-CineSubz-Icon-1.png';
 
+        console.log("📤 Sending buttons message with", buttons.length, "buttons");
+        
         await zanta.sendMessage(from, {
             image: { url: posterUrl },
             caption: msg,
@@ -261,6 +266,8 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
             buttons: buttons,
             headerType: 4
         }, { quoted: mek });
+
+        console.log("✅ Movie info sent successfully!");
 
     } catch (e) {
         console.log("SINHALASUBINFO Error:", e);
