@@ -82,11 +82,16 @@ async (zanta, mek, m, {
         const displayResults = result.data.slice(0, 10);
         
         displayResults.forEach((movie, index) => {
-            // Clean title
+            // Clean title - Remove subtitle text
             let cleanTitle = movie.Title
                 .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
                 .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
                 .trim();
+            
+            // Shorten title if too long
+            if (cleanTitle.length > 30) {
+                cleanTitle = cleanTitle.substring(0, 30) + '...';
+            }
             
             const yearInfo = movie.Year ? ` (${movie.Year})` : '';
             
@@ -127,13 +132,24 @@ cmd({
 },
 async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
     try {
+        // q එක හරියට parse කරන්න
         if (!q) return await reply('*Please provide a link!*');
+        
+        // q එකෙන් URL එක extract කරන්න (අමතර text තිබුනත්)
+        let movieLink = q.trim();
+        // If there are multiple parts, take the first one as URL
+        if (movieLink.includes(' ')) {
+            movieLink = movieLink.split(' ')[0];
+        }
+        
+        console.log("🔗 Movie Link:", movieLink);
 
-        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(q)}&apiKey=key_13be1374312cdd0a`;
+        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(movieLink)}&apiKey=key_13be1374312cdd0a`;
         const res = await axios.get(apiUrl);
         const sadas = res.data;
 
         if (!sadas.status || !sadas.data) {
+            console.log("API Response:", sadas);
             return await zanta.sendMessage(from, { text: '🚩 *Error fetching movie details!*' }, { quoted: mek });
         }
 
@@ -172,15 +188,17 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
 
         // Add Details button
         buttons.push({
-            buttonId: prefix + 'sinhalasubdetails ' + `${q}`,
+            buttonId: prefix + 'sinhalasubdetails ' + `${movieLink}`,
             buttonText: { displayText: '📋 Details Card' },
             type: 1
         });
 
         if (filteredLinks.length > 0) {
             filteredLinks.forEach((dl) => {
+                // Encode the URL properly
+                const encodedUrl = encodeURIComponent(dl.url);
                 buttons.push({
-                    buttonId: `${prefix}sinhalasubdl ${dl.url}±${movie.title}±${movie.poster}±${dl.quality}`,
+                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${movie.title}±${movie.poster || ''}±${dl.quality}`,
                     buttonText: {
                         displayText: `⬇️ ${dl.quality} - ${dl.size}`
                     },
@@ -191,8 +209,9 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
             // Fallback: Show all except Telegram
             const fallbackLinks = movie.download_links.filter(link => link.provider !== "Telegram");
             fallbackLinks.slice(0, 5).forEach((dl) => {
+                const encodedUrl = encodeURIComponent(dl.url);
                 buttons.push({
-                    buttonId: `${prefix}sinhalasubdl ${dl.url}±${movie.title}±${movie.poster}±${dl.quality}`,
+                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${movie.title}±${movie.poster || ''}±${dl.quality}`,
                     buttonText: {
                         displayText: `⬇️ ${dl.quality} - ${dl.size}`
                     },
@@ -228,8 +247,13 @@ cmd({
 async (zanta, mek, m, { from, q, reply }) => {
     try {
         if (!q) return await reply('*Please provide a link!*');
+        
+        let movieLink = q.trim();
+        if (movieLink.includes(' ')) {
+            movieLink = movieLink.split(' ')[0];
+        }
 
-        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(q)}&apiKey=key_13be1374312cdd0a`;
+        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(movieLink)}&apiKey=key_13be1374312cdd0a`;
         const res = await axios.get(apiUrl);
         const movie = res.data.data;
 
@@ -273,10 +297,26 @@ cmd({
     try {
         if (!q) return await reply('*📍 Please provide the movie link!*');
         
-        const [movieUrl, movieName, thumbUrl, quality] = q.split("±");
+        // Decode the URL from the q parameter
+        const parts = q.split("±");
+        let movieUrl = parts[0];
+        const movieName = parts[1] || '';
+        const thumbUrl = parts[2] || '';
+        const quality = parts[3] || '';
+        
+        // Decode the URL
+        try {
+            movieUrl = decodeURIComponent(movieUrl);
+        } catch (e) {
+            // If decoding fails, use as is
+            console.log("URL decode error, using as is");
+        }
+        
         if (!movieUrl || !movieName) return await reply('*⚠️ Invalid Format!*');
 
-        await zanta.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+        console.log("📥 Movie URL:", movieUrl);
+        console.log("🎬 Movie:", movieName);
+        console.log("📊 Quality:", quality);
 
         // Check if download is allowed (Premium check for downloads)
         const senderNumber = m.sender.split('@')[0];
@@ -293,18 +333,13 @@ cmd({
             }, { quoted: mek });
         }
 
-        // Direct download - Use the URL directly
-        let direct_link = movieUrl;
-
-        console.log("📥 Download URL:", direct_link);
-        console.log("🎬 Movie:", movieName);
-        console.log("📊 Quality:", quality);
+        await zanta.sendMessage(from, { react: { text: '⏳', key: mek.key } });
 
         // Thumbnail Processing
         let resizedBotImg = null;
         let thumbBuffer = null;
         
-        if (thumbUrl && thumbUrl !== 'undefined' && thumbUrl !== 'null') {
+        if (thumbUrl && thumbUrl !== 'undefined' && thumbUrl !== 'null' && thumbUrl !== '') {
             try {
                 const botimgResponse = await axios.get(thumbUrl, { responseType: 'arraybuffer' });
                 if (botimgResponse.data) {
@@ -330,11 +365,16 @@ cmd({
             .replace(/\s*\(\d{4}\)\s*/, " ")
             .trim();
 
+        // If name is too long, shorten it
+        if (cleanMovieName.length > 50) {
+            cleanMovieName = cleanMovieName.substring(0, 50);
+        }
+
         await zanta.sendMessage(from, { react: { text: '⬆️', key: mek.key } });
 
         // Send as document
         await zanta.sendMessage(from, { 
-            document: { url: direct_link }, 
+            document: { url: movieUrl }, 
             mimetype: 'video/mp4',
             fileName: `${cleanMovieName}.mp4`,
             caption: `*🎬 Name :* *${cleanMovieName}*\n\n*📊 Quality :* \`${quality}\`\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`,
