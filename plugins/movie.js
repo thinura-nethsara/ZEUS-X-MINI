@@ -26,7 +26,7 @@ const checkFree = async () => {
     }
 };
 
-// Main Search Command - Using List Message
+// Main Search Command
 cmd({
     pattern: "sinhalasub",
     react: '🔎',
@@ -72,40 +72,60 @@ async (zanta, mek, m, {
             return await zanta.sendMessage(from, { text: '*No results found ❌*' }, { quoted: mek });
         }
 
-        // Create list sections
-        let rows = [];
+        // Create buttons
+        let buttons = [];
         const displayResults = result.data.slice(0, 10);
         
-        displayResults.forEach((movie) => {
+        displayResults.forEach((movie, index) => {
             let cleanTitle = movie.Title
                 .replace("Sinhala Subtitles | සිංහල උපසිරැසි සමඟ", "")
                 .replace("Sinhala Subtitle | සිංහල උපසිරැසි සමඟ", "")
                 .trim();
             
-            const yearInfo = movie.Year ? ` (${movie.Year})` : '';
-            const ratingInfo = movie.Rating && movie.Rating !== "N/A" ? ` ⭐${movie.Rating}` : '';
+            if (cleanTitle.length > 30) {
+                cleanTitle = cleanTitle.substring(0, 30) + '...';
+            }
             
-            rows.push({
-                title: `${cleanTitle}${yearInfo}`,
-                description: `🎬 ${ratingInfo || 'No Rating'} | Click to get download links`,
-                rowId: `${prefix}sinhalasubinfo ${encodeURIComponent(movie.Link)}`
+            const yearInfo = movie.Year ? ` (${movie.Year})` : '';
+            
+            buttons.push({
+                buttonId: `${prefix}sinhalasubinfo ${encodeURIComponent(movie.Link)}`,
+                buttonText: { displayText: `${index+1}. ${cleanTitle}${yearInfo}` },
+                type: 1
             });
         });
 
-        const sections = [{
-            title: `📽️ SINHALASUB MOVIES (${result.total_results || result.data.length} found)`,
-            rows: rows
-        }];
+        // Split buttons into chunks of 3
+        const chunkSize = 3;
+        let buttonChunks = [];
+        for (let i = 0; i < buttons.length; i += chunkSize) {
+            buttonChunks.push(buttons.slice(i, i + chunkSize));
+        }
 
-        const listMessage = {
-            text: `_*SINHALASUB MOVIE SEARCH RESULTS 🎬*_\n\n*\`Input :\`* ${q}\n*Total Results:* ${result.total_results || result.data.length}\n\n*Select a movie from the list below to get download links.*`,
-            footer: config.FOOTER || "ZEUS X BOT",
-            title: '🎬 Movie List',
-            buttonText: '📋 View Movies',
-            sections
-        };
+        const msg = `_*SINHALASUB MOVIE SEARCH RESULTS 🎬*_\n\n`;
+        const msg2 = `*\`Input :\`* ${q}\n*Total Results:* ${result.total_results || result.data.length}\n\n*Select a movie from the buttons below to get download links.*\n\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
 
-        await zanta.sendMessage(from, listMessage, { quoted: mek });
+        // Send first chunk as buttons
+        if (buttonChunks.length > 0) {
+            const buttonMessage = {
+                text: msg + msg2,
+                footer: config.FOOTER || "ZEUS X BOT",
+                buttons: buttonChunks[0],
+                headerType: 4
+            };
+            await zanta.sendMessage(from, buttonMessage, { quoted: mek });
+        }
+
+        // Send remaining chunks as separate messages
+        for (let i = 1; i < buttonChunks.length; i++) {
+            const buttonMessage = {
+                text: `_*More Results...*_`,
+                footer: config.FOOTER || "ZEUS X BOT",
+                buttons: buttonChunks[i],
+                headerType: 4
+            };
+            await zanta.sendMessage(from, buttonMessage, { quoted: mek });
+        }
 
     } catch (e) {
         console.log("SINHALASUB Command Error:", e);
@@ -113,7 +133,7 @@ async (zanta, mek, m, {
     }
 });
 
-// Movie Info Command - Using List Message for Qualities
+// Movie Info Command
 cmd({
     pattern: "sinhalasubinfo",
     react: '🎥',
@@ -169,8 +189,9 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
         msg += `*⭐ IMDb:* ${movie.imdb_rating || 'N/A'}\n`;
         msg += `*⏰ Runtime:* ${movie.runtime || 'N/A'}\n`;
         msg += `*🎭 Genres:* ${genres}\n`;
-        msg += `*📝 Description:*\n${movie.description ? movie.description.substring(0, 150) + '...' : 'N/A'}\n\n`;
-        msg += `*Select a quality from the list below to download:*`;
+        msg += `*💁 Subtitles:* Sinhalasub\n`;
+        msg += `*📝 Description:*\n${movie.description ? movie.description.substring(0, 120) + '...' : 'N/A'}\n\n`;
+        msg += `*Select a quality button below to download:*`;
 
         // Filter download links
         const ALLOWED_QUALITIES = ["SD 480p", "HD 720p", "FHD 1080p"];
@@ -186,14 +207,13 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
             return PROVIDER_PRIORITY.indexOf(a.provider) - PROVIDER_PRIORITY.indexOf(b.provider);
         });
 
-        // Create list rows for qualities
-        let rows = [];
+        let buttons = [];
 
-        // Add Details option
-        rows.push({
-            title: '📋 View Full Details',
-            description: 'See complete movie information',
-            rowId: `${prefix}sinhalasubdetails ${encodeURIComponent(movieLink)}`
+        // Add Details button
+        buttons.push({
+            buttonId: `${prefix}sinhalasubdetails ${encodeURIComponent(movieLink)}`,
+            buttonText: { displayText: '📋 Details Card' },
+            type: 1
         });
 
         if (filteredLinks.length > 0) {
@@ -201,10 +221,12 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
                 const encodedUrl = encodeURIComponent(dl.url);
                 const encodedTitle = encodeURIComponent(movie.title || 'Movie');
                 const encodedPoster = encodeURIComponent(movie.poster || '');
-                rows.push({
-                    title: `⬇️ ${dl.quality}`,
-                    description: `📦 ${dl.size} | ${dl.provider}`,
-                    rowId: `${prefix}sinhalasubdl ${encodedUrl}±${encodedTitle}±${encodedPoster}±${dl.quality}`
+                buttons.push({
+                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${encodedTitle}±${encodedPoster}±${dl.quality}`,
+                    buttonText: {
+                        displayText: `⬇️ ${dl.quality} (${dl.size})`
+                    },
+                    type: 1
                 });
             });
         } else {
@@ -213,35 +235,25 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
                 const encodedUrl = encodeURIComponent(dl.url);
                 const encodedTitle = encodeURIComponent(movie.title || 'Movie');
                 const encodedPoster = encodeURIComponent(movie.poster || '');
-                rows.push({
-                    title: `⬇️ ${dl.quality || 'Download'}`,
-                    description: `📦 ${dl.size || 'Unknown'} | ${dl.provider || 'Unknown'}`,
-                    rowId: `${prefix}sinhalasubdl ${encodedUrl}±${encodedTitle}±${encodedPoster}±${dl.quality || 'Unknown'}`
+                buttons.push({
+                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${encodedTitle}±${encodedPoster}±${dl.quality || 'Unknown'}`,
+                    buttonText: {
+                        displayText: `⬇️ ${dl.quality || 'Download'} (${dl.size || 'Unknown'})`
+                    },
+                    type: 1
                 });
             });
         }
-
-        const sections = [{
-            title: `🎬 ${movie.title ? movie.title.substring(0, 30) : 'Movie'} - Download Options`,
-            rows: rows
-        }];
-
-        const listMessage = {
-            text: msg,
-            footer: config.FOOTER || "ZEUS X BOT",
-            title: '📥 Select Quality',
-            buttonText: '📋 Download Options',
-            sections
-        };
 
         const posterUrl = movie.poster || 'https://sinhalasub.lk/wp-content/uploads/2021/09/cropped-cropped-CineSubz-Icon-1.png';
 
         await zanta.sendMessage(from, {
             image: { url: posterUrl },
-            caption: msg
+            caption: msg,
+            footer: config.FOOTER || "ZEUS X BOT",
+            buttons: buttons,
+            headerType: 4
         }, { quoted: mek });
-
-        await zanta.sendMessage(from, listMessage, { quoted: mek });
 
         console.log("✅ Movie info sent successfully!");
 
