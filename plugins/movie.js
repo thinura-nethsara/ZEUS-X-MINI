@@ -139,18 +139,30 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
         
         console.log("🔗 Raw q:", q);
         
-        // URL decode කරන්න
+        // Extract the URL from q - Remove the command name if present
         let movieLink = q.trim();
+        
+        // If q contains the command name, extract only the URL part
+        if (movieLink.includes('sinhalasubinfo')) {
+            const parts = movieLink.split(' ');
+            // Find the part that looks like a URL
+            for (const part of parts) {
+                if (part.includes('http') || part.includes('%')) {
+                    movieLink = part;
+                    break;
+                }
+            }
+        }
+        
+        // URL decode කරන්න
         try {
             movieLink = decodeURIComponent(movieLink);
         } catch (e) {
-            // If decoding fails, use as is
             console.log("URL decode error, using as is");
         }
         
         // Check if it's a valid URL
         if (!movieLink.startsWith('http')) {
-            // If not a URL, it might be the command name itself
             console.log("Invalid URL, skipping");
             return await reply('*Invalid movie link!*');
         }
@@ -272,6 +284,18 @@ async (zanta, mek, m, { from, q, reply }) => {
         if (!q) return await reply('*Please provide a link!*');
         
         let movieLink = q.trim();
+        
+        // Extract URL if command name is present
+        if (movieLink.includes('sinhalasubdetails')) {
+            const parts = movieLink.split(' ');
+            for (const part of parts) {
+                if (part.includes('http') || part.includes('%')) {
+                    movieLink = part;
+                    break;
+                }
+            }
+        }
+        
         try {
             movieLink = decodeURIComponent(movieLink);
         } catch (e) {
