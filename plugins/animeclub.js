@@ -43,17 +43,41 @@ cmd({
         const searchUrl = `https://animeclub-api.udmodz-2ab.workers.dev/search?q=${encodeURIComponent(query)}`;
         const { data: searchData } = await axios.get(searchUrl, { timeout: 30000 });
 
-        let results = searchData?.data || [];
-        if (!results || !results.length) {
-            return reply("❎ No anime movies found.");
+        // Log the full response for debugging
+        console.log('🔍 AnimeClub search response:', JSON.stringify(searchData, null, 2));
+
+        // Extract results from various possible structures
+        let results = [];
+        if (searchData?.data && Array.isArray(searchData.data)) {
+            results = searchData.data;
+        } else if (searchData?.results && Array.isArray(searchData.results)) {
+            results = searchData.results;
+        } else if (Array.isArray(searchData)) {
+            results = searchData;
+        } else if (searchData?.movies && Array.isArray(searchData.movies)) {
+            results = searchData.movies;
         }
+
+        // If there's an error message in the response
+        if (searchData?.error) {
+            return reply(`❌ *API Error:* ${searchData.error}`);
+        }
+
+        if (searchData?.message) {
+            return reply(`ℹ️ *Message:* ${searchData.message}`);
+        }
+
+        if (!results || !results.length) {
+            return reply(`❎ No anime movies found for *"${query}"*. Try a different title.`);
+        }
+
         results = results.slice(0, 10);
 
         // ---------- BUTTON MODE ----------
         if (isButtonsOn) {
             const buttons = results.map((r, i) => ({
                 buttonId: `animeclub_movie_${i}`,
-                buttonText: { displayText: `🎌 ${r.title.substring(0, 30)}` },
+                buttonText: { displayText: `🎌 ${r.title ? r.title.substring(0, 30) : 'Unknown Title'}` },
                 type: 1
             }));
 
@@ -90,6 +114,8 @@ cmd({
                     const dlUrl = `https://animeclub-api.udmodz-2ab.workers.dev/dl?url=${encodeURIComponent(movieUrl)}`;
                     const { data: dlData } = await axios.get(dlUrl, { timeout: 30000 });
 
+                    console.log('🔽 Download response:', JSON.stringify(dlData, null, 2));
+
                     if (!dlData?.status || !dlData?.result) {
                         return await bot.sendMessage(from, { text: '❎ Failed to fetch download info.' });
                     }
@@ -107,7 +133,7 @@ cmd({
                     // Build details caption
                     const detailsCaption = `╭━━━〔 🎌 ANIMECLUB MOVIE 〕━━━⬣
 
-🎬 *Title:* ${selected.title}
+🎬 *Title:* ${selected.title || 'N/A'}
 📁 *File:* ${fileName}
 💾 *Size:* ${fileSize}
 ⏳ *Link expires in:* ${expiresIn}
@@ -152,7 +178,7 @@ cmd({
 
                             if (actionId === 'animeclub_details_card') {
                                 await bot.sendMessage(from, { react: { text: '📋', key: actionMsg.key } });
-                                const cleanDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title}*
+                                const cleanDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
 
 *▫️📁 𝗙𝗶𝗹𝗲𝗻𝗮𝗺𝗲 ➟ ${fileName}*
 *▫️💾 𝗦𝗶𝘇𝗲 ➟ ${fileSize}*
@@ -174,19 +200,18 @@ cmd({
                                 // Send the video as document with thumbnail
                                 let thumb = null;
                                 try {
-                                    // Use a generic thumbnail or fetch from poster if available
                                     const thumbRes = await axios.get('https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png', { responseType: 'arraybuffer', timeout: 10000 });
                                     thumb = await sharp(thumbRes.data).resize(320, 320).jpeg({ quality: 70 }).toBuffer();
                                 } catch (e) { console.warn('Thumbnail error:', e.message); }
 
-                                const safeTitle = selected.title.replace(/[^\w\s]/g, '');
+                                const safeTitle = (selected.title || 'Anime').replace(/[^\w\s]/g, '');
                                 const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
 
                                 await bot.sendMessage(from, {
                                     document: { url: downloadUrl },
                                     mimetype: 'video/mp4',
                                     fileName: sendFileName,
-                                    caption: `*${selected.title}*\n\n💾 *Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                    caption: `*${selected.title || 'Anime Movie'}*\n\n💾 *Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                     jpegThumbnail: thumb
                                 }, { quoted: actionMsg });
 
@@ -218,7 +243,8 @@ cmd({
         let searchList = `🎌 *AnimeClub Search Results*\n\nQuery: ${query}\n\n`;
         let idx = 1;
         results.forEach((r) => {
-            searchList += `${idx++}️⃣ ${r.title}\n`;
+            const title = r.title || 'Unknown Title';
+            searchList += `${idx++}️⃣ ${title}\n`;
         });
         searchList += `\nReply with the number (1-${results.length}).`;
 
@@ -267,7 +293,7 @@ cmd({
                     return await bot.sendMessage(from, { text: '❎ No download link available.' });
                 }
 
-                const detailCaption = `🎌 *${selected.title}*
+                const detailCaption = `🎌 *${selected.title || 'N/A'}*
 
 📁 *File:* ${fileName}
 💾 *Size:* ${fileSize}
@@ -298,7 +324,7 @@ cmd({
                         const choice = body2.trim();
                         if (choice === '2' || choice.toLowerCase() === 'details card') {
                             await bot.sendMessage(from, { react: { text: '📋', key: m2.key } });
-                            const cleanDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title}*
+                            const cleanDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
 
 *▫️📁 𝗙𝗶𝗹𝗲𝗻𝗮𝗺𝗲 ➟ ${fileName}*
 *▫️💾 𝗦𝗶𝘇𝗲 ➟ ${fileSize}*
@@ -324,14 +350,14 @@ cmd({
                                 thumb = await sharp(thumbRes.data).resize(320, 320).jpeg({ quality: 70 }).toBuffer();
                             } catch (e) { console.warn('Thumbnail error:', e.message); }
 
-                            const safeTitle = selected.title.replace(/[^\w\s]/g, '');
+                            const safeTitle = (selected.title || 'Anime').replace(/[^\w\s]/g, '');
                             const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
 
                             await bot.sendMessage(from, {
                                 document: { url: downloadUrl },
                                 mimetype: 'video/mp4',
                                 fileName: sendFileName,
-                                caption: `*${selected.title}*\n\n💾 *Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                caption: `*${selected.title || 'Anime Movie'}*\n\n💾 *Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                 jpegThumbnail: thumb
                             }, { quoted: m2 });
 
