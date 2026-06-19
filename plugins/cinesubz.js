@@ -261,7 +261,7 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
         }
 
         // ---------- TEXT MODE (Buttons OFF) - TikTok style dynamic emoji numbers ----------
-        // Build numbered list for search results
+        // Build numbered list for search results (using dynamic emojis like 1️⃣, 2️⃣, ...)
         let searchList = `🎬 *CineSubz Search Results*\n\nQuery: ${query}\n\n`;
         let idx = 1;
         results.forEach((r) => {
