@@ -54,7 +54,7 @@ cmd({
     try {
         const query = q.trim();
         if (!query) {
-            return reply("🎬 *CineSubz Downloader*\n\nExample: .cinesubz Avatar");
+            return reply("🎬 *ZEUS X MOVIE ZONE*\n\nExample: .cinesubz Avatar");
         }
 
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
@@ -83,7 +83,7 @@ cmd({
             }));
 
             const searchMsg = await bot.sendMessage(from, {
-                image: { url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQt78F5c1b_8PZM7d--5Jy77lE1FdVRq050lULngkwpq5MX7a-0tVOCJGo&s=10' },
+                image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
                 caption: `🎬 *CineSubz Search Results*\n\nQuery: ${query}\nSelect a movie:`,
                 buttons,
                 headerType: 4
@@ -270,7 +270,7 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
         searchList += `\nReply with the number (1-${results.length}).`;
 
         const searchMsg = await bot.sendMessage(from, {
-            image: { url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQt78F5c1b_8PZM7d--5Jy77lE1FdVRq050lULngkwpq5MX7a-0tVOCJGo&s=10' },
+            image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
             caption: searchList
         }, { quoted: mek });
 
