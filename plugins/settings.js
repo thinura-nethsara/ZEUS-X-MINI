@@ -227,6 +227,7 @@ cmd({
                         zanta.ev.off('messages.upsert', editListener);
                     } catch (err) {
                         console.error('Edit listener error:', err);
+                        await zanta.sendMessage(from, { text: `❌ Error: ${err.message}` });
                         zanta.ev.off('messages.upsert', editListener);
                     }
                 };
@@ -236,6 +237,7 @@ cmd({
 
             } catch (err) {
                 console.error('Home listener error:', err);
+                await zanta.sendMessage(from, { text: `❌ Error: ${err.message}` });
                 zanta.ev.off('messages.upsert', homeListener);
             }
         };
@@ -253,8 +255,8 @@ cmd({
         return; // End of Button Mode
     }
 
-    // ---------- TEXT MODE (Buttons OFF) ----------
-    // Text-based menu with emoji numbers
+    // ---------- TEXT MODE (Buttons OFF) - TikTok style ----------
+    // Text-based menu with dynamic emoji numbers (like TikTok command)
     const textMenu = `⚡ *${botName.toUpperCase()} SYSTEM DASHBOARD* ⚡\n\nSelect an option by replying with the number:\n\n1️⃣ BASIC CONFIGS\n2️⃣ BOT SETTINGS\n\nReply with *1* or *2* to view.`;
 
     const textHomeMsg = await zanta.sendMessage(from, {
@@ -363,6 +365,7 @@ cmd({
                     zanta.ev.off('messages.upsert', editListener2);
                 } catch (err) {
                     console.error('Edit listener error (text mode):', err);
+                    await zanta.sendMessage(from, { text: `❌ Error: ${err.message}` });
                     zanta.ev.off('messages.upsert', editListener2);
                 }
             };
@@ -372,6 +375,7 @@ cmd({
 
         } catch (err) {
             console.error('Text nav error:', err);
+            await zanta.sendMessage(from, { text: `❌ Error: ${err.message}` });
             zanta.ev.off('messages.upsert', textNavListener);
         }
     };
