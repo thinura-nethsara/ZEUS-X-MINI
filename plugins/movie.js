@@ -89,14 +89,16 @@ async (zanta, mek, m, {
                 .trim();
             
             // Shorten title if too long
-            if (cleanTitle.length > 30) {
-                cleanTitle = cleanTitle.substring(0, 30) + '...';
+            if (cleanTitle.length > 35) {
+                cleanTitle = cleanTitle.substring(0, 35) + '...';
             }
             
             const yearInfo = movie.Year ? ` (${movie.Year})` : '';
             
+            // Use proper button ID format - encode the URL
+            const encodedLink = encodeURIComponent(movie.Link);
             buttons.push({
-                buttonId: `${prefix}sinhalasubinfo ${movie.Link}`,
+                buttonId: `${prefix}sinhalasubinfo ${encodedLink}`,
                 buttonText: { displayText: `${index+1}. ${cleanTitle}${yearInfo}` },
                 type: 1
             });
@@ -135,16 +137,29 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
         // q එක හරියට parse කරන්න
         if (!q) return await reply('*Please provide a link!*');
         
-        // q එකෙන් URL එක extract කරන්න (අමතර text තිබුනත්)
+        console.log("🔗 Raw q:", q);
+        
+        // URL decode කරන්න
         let movieLink = q.trim();
-        // If there are multiple parts, take the first one as URL
-        if (movieLink.includes(' ')) {
-            movieLink = movieLink.split(' ')[0];
+        try {
+            movieLink = decodeURIComponent(movieLink);
+        } catch (e) {
+            // If decoding fails, use as is
+            console.log("URL decode error, using as is");
+        }
+        
+        // Check if it's a valid URL
+        if (!movieLink.startsWith('http')) {
+            // If not a URL, it might be the command name itself
+            console.log("Invalid URL, skipping");
+            return await reply('*Invalid movie link!*');
         }
         
         console.log("🔗 Movie Link:", movieLink);
 
         const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(movieLink)}&apiKey=key_13be1374312cdd0a`;
+        console.log("📡 API URL:", apiUrl);
+        
         const res = await axios.get(apiUrl);
         const sadas = res.data;
 
@@ -188,7 +203,7 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
 
         // Add Details button
         buttons.push({
-            buttonId: prefix + 'sinhalasubdetails ' + `${movieLink}`,
+            buttonId: prefix + 'sinhalasubdetails ' + `${encodeURIComponent(movieLink)}`,
             buttonText: { displayText: '📋 Details Card' },
             type: 1
         });
@@ -197,8 +212,10 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
             filteredLinks.forEach((dl) => {
                 // Encode the URL properly
                 const encodedUrl = encodeURIComponent(dl.url);
+                const encodedTitle = encodeURIComponent(movie.title || 'Movie');
+                const encodedPoster = encodeURIComponent(movie.poster || '');
                 buttons.push({
-                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${movie.title}±${movie.poster || ''}±${dl.quality}`,
+                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${encodedTitle}±${encodedPoster}±${dl.quality}`,
                     buttonText: {
                         displayText: `⬇️ ${dl.quality} - ${dl.size}`
                     },
@@ -210,8 +227,10 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
             const fallbackLinks = movie.download_links.filter(link => link.provider !== "Telegram");
             fallbackLinks.slice(0, 5).forEach((dl) => {
                 const encodedUrl = encodeURIComponent(dl.url);
+                const encodedTitle = encodeURIComponent(movie.title || 'Movie');
+                const encodedPoster = encodeURIComponent(movie.poster || '');
                 buttons.push({
-                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${movie.title}±${movie.poster || ''}±${dl.quality}`,
+                    buttonId: `${prefix}sinhalasubdl ${encodedUrl}±${encodedTitle}±${encodedPoster}±${dl.quality}`,
                     buttonText: {
                         displayText: `⬇️ ${dl.quality} - ${dl.size}`
                     },
@@ -233,7 +252,11 @@ async (zanta, mek, m, { from, q, isMe, prefix, reply }) => {
 
     } catch (e) {
         console.log("SINHALASUBINFO Error:", e);
-        await zanta.sendMessage(from, { text: '🚩 *Error !!*' }, { quoted: mek });
+        if (e.response) {
+            console.log("Response data:", e.response.data);
+            console.log("Response status:", e.response.status);
+        }
+        await zanta.sendMessage(from, { text: '🚩 *Error fetching movie details!*' }, { quoted: mek });
     }
 });
 
@@ -249,8 +272,14 @@ async (zanta, mek, m, { from, q, reply }) => {
         if (!q) return await reply('*Please provide a link!*');
         
         let movieLink = q.trim();
-        if (movieLink.includes(' ')) {
-            movieLink = movieLink.split(' ')[0];
+        try {
+            movieLink = decodeURIComponent(movieLink);
+        } catch (e) {
+            console.log("URL decode error, using as is");
+        }
+        
+        if (!movieLink.startsWith('http')) {
+            return await reply('*Invalid movie link!*');
         }
 
         const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/sinhalasub?url=${encodeURIComponent(movieLink)}&apiKey=key_13be1374312cdd0a`;
@@ -297,18 +326,21 @@ cmd({
     try {
         if (!q) return await reply('*📍 Please provide the movie link!*');
         
+        console.log("📥 Raw q:", q);
+        
         // Decode the URL from the q parameter
         const parts = q.split("±");
-        let movieUrl = parts[0];
-        const movieName = parts[1] || '';
-        const thumbUrl = parts[2] || '';
-        const quality = parts[3] || '';
+        let movieUrl = parts[0] || '';
+        let movieName = parts[1] || '';
+        let thumbUrl = parts[2] || '';
+        let quality = parts[3] || '';
         
-        // Decode the URL
+        // Decode all parts
         try {
             movieUrl = decodeURIComponent(movieUrl);
+            movieName = decodeURIComponent(movieName);
+            thumbUrl = decodeURIComponent(thumbUrl);
         } catch (e) {
-            // If decoding fails, use as is
             console.log("URL decode error, using as is");
         }
         
