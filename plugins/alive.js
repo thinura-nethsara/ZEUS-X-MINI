@@ -74,10 +74,10 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
                 image: imageToDisplay, 
                 caption: finalMsg,
                 buttons: [
-                    { buttonId: prefix + "ping", buttonText: { displayText: "⚡ PING" }, type: 1 },
-                    { buttonId: prefix + "menu", buttonText: { displayText: "📜 MENU" }, type: 1 },
-                    { buttonId: prefix + "settings", buttonText: { displayText: "⚙️ SETTINGS" }, type: 1 },
-                    { buttonId: prefix + "help", buttonText: { displayText: "📞 HELP" }, type: 1 }
+                    { buttonId: prefix + "ping", buttonText: { displayText: "ᴘɪɴɢ" }, type: 1 },
+                    { buttonId: prefix + "menu", buttonText: { displayText: "ᴍᴇɴᴜ" }, type: 1 },
+                    { buttonId: prefix + "settings", buttonText: { displayText: "sᴇᴛᴛɪɴɢs" }, type: 1 },
+                    { buttonId: prefix + "help", buttonText: { displayText: "ʜᴇʟᴘᴍᴇ" }, type: 1 }
                 ],
                 headerType: 4, 
                 contextInfo: {
