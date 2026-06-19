@@ -26,6 +26,42 @@ cmd({
         }
     }
 
+    // Function to get direct download link from GDrive API
+    async function getGDriveDirectLink(gdriveUrl) {
+        try {
+            // Extract the file ID from the GDrive URL
+            let fileId = null;
+            // Try to extract from various GDrive URL formats
+            const idMatch = gdriveUrl.match(/[?&]id=([^&]+)/) || 
+                           gdriveUrl.match(/\/d\/([^\/]+)/) ||
+                           gdriveUrl.match(/file\/d\/([^\/]+)/);
+            if (idMatch) {
+                fileId = idMatch[1];
+            }
+
+            // If we have a file ID, use the GDrive API
+            if (fileId) {
+                const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/gdrive?url=https://drive.usercontent.google.com/download?id=${fileId}&export=download&authuser=0&apiKey=key_faa62e4037a95cda`;
+                const { data } = await axios.get(apiUrl, { timeout: 30000 });
+                console.log('🔽 GDRIVE API RESPONSE:', JSON.stringify(data, null, 2));
+                
+                if (data?.status && data?.result?.download) {
+                    return {
+                        directUrl: data.result.download,
+                        fileName: data.result.fileName || 'file.mp4',
+                        fileSize: data.result.fileSize || 'Unknown'
+                    };
+                }
+            }
+
+            // Fallback: try using the original URL
+            return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown' };
+        } catch (err) {
+            console.error('GDrive API error:', err);
+            return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown' };
+        }
+    }
+
     try {
         const query = q.trim();
         if (!query) {
@@ -111,7 +147,7 @@ cmd({
 
                     // Filter for direct download links (prefer those with "Direct Download" or from thenuxgdrive)
                     const directLinks = linkEntries.filter(([key, value]) => {
-                        const isDirect = key.includes('Direct Download') || value.includes('thenuxgdrive.netlify.app');
+                        const isDirect = key.includes('Direct Download') || value.includes('thenuxgdrive.netlify.app') || value.includes('drive.google.com');
                         return isDirect && value && value.startsWith('http');
                     });
 
@@ -155,9 +191,6 @@ cmd({
                         type: 1
                     });
 
-                    // If too many buttons (> 10), we may need to truncate, but WhatsApp allows up to 20 buttons.
-                    // We'll keep all.
-
                     const detailMsg = await bot.sendMessage(from, {
                         image: { url: thumbnail },
                         caption: detailsCaption,
@@ -181,7 +214,6 @@ cmd({
 
                             if (actionId === 'animeclub_details_card') {
                                 await bot.sendMessage(from, { react: { text: '📋', key: actionMsg.key } });
-                                // Full details with all links (including non-direct)
                                 let fullDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${title}*\n\n`;
                                 fullDetails += `*📖 𝗗𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻:*\n${description}\n\n`;
                                 fullDetails += `*📥 𝗔𝗹𝗹 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗟𝗶𝗻𝗸𝘀:*\n`;
@@ -191,11 +223,7 @@ cmd({
                                 fullDetails += `\n*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*\n`;
                                 fullDetails += `*👥 𝙵𝙾𝙻𝙻𝙾𝚆 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 ➟* https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o\n`;
                                 fullDetails += `*➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*`;
-
-                                // Split if too long (WhatsApp limit ~4096)
-                                if (fullDetails.length > 4000) {
-                                    fullDetails = fullDetails.substring(0, 3950) + '\n...(truncated)';
-                                }
+                                if (fullDetails.length > 4000) fullDetails = fullDetails.substring(0, 3950) + '\n...(truncated)';
                                 await bot.sendMessage(from, {
                                     image: { url: thumbnail },
                                     caption: fullDetails
@@ -212,6 +240,31 @@ cmd({
                                 const [key, url] = selectedLink;
                                 await bot.sendMessage(from, { react: { text: '⬇️', key: actionMsg.key } });
 
+                                // Check if this is a Google Drive link
+                                let downloadUrl = url;
+                                let fileName = `${title}.mp4`;
+                                let fileSize = 'Unknown';
+
+                                if (url.includes('drive.google.com')) {
+                                    try {
+                                        // Get direct download link from GDrive API
+                                        const gdriveResult = await getGDriveDirectLink(url);
+                                        downloadUrl = gdriveResult.directUrl;
+                                        fileName = gdriveResult.fileName;
+                                        fileSize = gdriveResult.fileSize;
+                                        
+                                        // Show progress
+                                        await bot.sendMessage(from, { 
+                                            text: `⏳ *Processing Google Drive link...*\nFile: ${fileName}\nSize: ${fileSize}` 
+                                        }, { quoted: actionMsg });
+                                    } catch (err) {
+                                        console.error('GDrive processing error:', err);
+                                        await bot.sendMessage(from, { 
+                                            text: `⚠️ *Could not process GDrive link. Trying direct URL...*` 
+                                        }, { quoted: actionMsg });
+                                    }
+                                }
+
                                 let thumb = null;
                                 try {
                                     const thumbRes = await axios.get(thumbnail, { responseType: 'arraybuffer', timeout: 10000 });
@@ -219,13 +272,13 @@ cmd({
                                 } catch (e) { console.warn('Thumbnail error:', e.message); }
 
                                 const safeTitle = title.replace(/[^\w\s]/g, '');
-                                const fileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
+                                const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
 
                                 await bot.sendMessage(from, {
-                                    document: { url: url },
+                                    document: { url: downloadUrl },
                                     mimetype: 'video/mp4',
-                                    fileName: fileName,
-                                    caption: `*${title}*\n\n*Link:* ${key}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                    fileName: sendFileName,
+                                    caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                     jpegThumbnail: thumb
                                 }, { quoted: actionMsg });
 
@@ -302,7 +355,7 @@ cmd({
 
                 // Filter direct links
                 const directLinks = linkEntries.filter(([key, value]) => {
-                    return (key.includes('Direct Download') || value.includes('thenuxgdrive.netlify.app')) && value && value.startsWith('http');
+                    return (key.includes('Direct Download') || value.includes('thenuxgdrive.netlify.app') || value.includes('drive.google.com')) && value && value.startsWith('http');
                 });
                 const finalLinks = directLinks.length ? directLinks : linkEntries.filter(([key, value]) => value && value.startsWith('http') && !value.includes('animeclub2.com/links/'));
 
@@ -314,7 +367,6 @@ cmd({
                     });
                 }
 
-                // Build detail message (with numbered choices)
                 let detailCaption = `🎌 *${title}*\n\n📝 ${description.substring(0, 200)}${description.length > 200 ? '...' : ''}\n\n`;
                 detailCaption += `*Select a download link by replying with the number:*\n\n`;
                 finalLinks.forEach(([key, url], i) => {
@@ -329,7 +381,6 @@ cmd({
 
                 bot.ev.off('messages.upsert', movieTextListener);
 
-                // --- Text action listener ---
                 const actionTextListener = async (update2) => {
                     try {
                         const m2 = update2.messages[0];
@@ -361,11 +412,31 @@ cmd({
                             return;
                         }
 
-                        // Try to parse as a number
                         const dlIndex = parseInt(choice);
                         if (!isNaN(dlIndex) && dlIndex >= 1 && dlIndex <= finalLinks.length) {
                             const [key, url] = finalLinks[dlIndex - 1];
                             await bot.sendMessage(from, { react: { text: '⬇️', key: m2.key } });
+
+                            let downloadUrl = url;
+                            let fileName = `${title}.mp4`;
+                            let fileSize = 'Unknown';
+
+                            if (url.includes('drive.google.com')) {
+                                try {
+                                    const gdriveResult = await getGDriveDirectLink(url);
+                                    downloadUrl = gdriveResult.directUrl;
+                                    fileName = gdriveResult.fileName;
+                                    fileSize = gdriveResult.fileSize;
+                                    await bot.sendMessage(from, { 
+                                        text: `⏳ *Processing Google Drive link...*\nFile: ${fileName}\nSize: ${fileSize}` 
+                                    }, { quoted: m2 });
+                                } catch (err) {
+                                    console.error('GDrive processing error:', err);
+                                    await bot.sendMessage(from, { 
+                                        text: `⚠️ *Could not process GDrive link. Trying direct URL...*` 
+                                    }, { quoted: m2 });
+                                }
+                            }
 
                             let thumb = null;
                             try {
@@ -374,13 +445,13 @@ cmd({
                             } catch (e) { console.warn('Thumbnail error:', e.message); }
 
                             const safeTitle = title.replace(/[^\w\s]/g, '');
-                            const fileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
+                            const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
 
                             await bot.sendMessage(from, {
-                                document: { url: url },
+                                document: { url: downloadUrl },
                                 mimetype: 'video/mp4',
-                                fileName: fileName,
-                                caption: `*${title}*\n\n*Link:* ${key}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                fileName: sendFileName,
+                                caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                 jpegThumbnail: thumb
                             }, { quoted: m2 });
 
