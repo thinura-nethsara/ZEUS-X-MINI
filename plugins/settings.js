@@ -57,6 +57,71 @@ function generateBotSettings(settings, botName) {
     return text;
 }
 
+// Helper to update settings
+async function handleEditCommand(body, settings, senderNumber, from, zanta, msg, reply) {
+    const parts = body.trim().split(/\s+/);
+    if (parts.length < 2) return false;
+    
+    const num = parseInt(parts[0]);
+    if (isNaN(num)) return false;
+    
+    const value = parts.slice(1).join(' ');
+    const settingMap = {
+        '1': 'botName',
+        '2': 'ownerName',
+        '3': 'prefix',
+        '4': 'workType',
+        '5': 'password',
+        '6': 'botImage',
+        '7': 'alwaysOnline',
+        '8': 'autoRead',
+        '9': 'autoTyping',
+        '10': 'autoStatusSeen',
+        '11': 'autoStatusReact',
+        '12': 'readCmd',
+        '13': 'autoVoice',
+        '14': 'autoReply',
+        '15': 'connectionMsg',
+        '16': 'buttons',
+        '17': 'autoVoiceReply',
+        '18': 'antidelete',
+        '19': 'autoReact',
+        '20': 'groupSecurity' // Special case
+    };
+    
+    const key = settingMap[num.toString()];
+    if (!key) return false;
+    
+    // Handle group security (toggle all security features)
+    if (key === 'groupSecurity') {
+        const val = value.toLowerCase();
+        if (val === 'on' || val === 'true') {
+            await updateSetting(senderNumber, 'badWords', 'true');
+            await updateSetting(senderNumber, 'antiLink', 'true');
+            await updateSetting(senderNumber, 'antiCmd', 'true');
+            await updateSetting(senderNumber, 'antiBot', 'true');
+            await zanta.sendMessage(from, { react: { text: '✅', key: msg.key } });
+            await reply(`🛡️ *Group Security* turned ON successfully!\nAll security features enabled.`);
+        } else if (val === 'off' || val === 'false') {
+            await updateSetting(senderNumber, 'badWords', 'false');
+            await updateSetting(senderNumber, 'antiLink', 'false');
+            await updateSetting(senderNumber, 'antiCmd', 'false');
+            await updateSetting(senderNumber, 'antiBot', 'false');
+            await zanta.sendMessage(from, { react: { text: '✅', key: msg.key } });
+            await reply(`🛡️ *Group Security* turned OFF successfully!\nAll security features disabled.`);
+        } else {
+            await reply(`❌ Invalid value for Group Security. Use *on* or *off*.`);
+        }
+        return true;
+    }
+    
+    // For other settings
+    await updateSetting(senderNumber, key, value);
+    await zanta.sendMessage(from, { react: { text: '✅', key: msg.key } });
+    await reply(`✅ *${key}* updated to: ${value}`);
+    return true;
+}
+
 cmd({
     pattern: "settings",
     alias: ["set", "dashboard", "status"],
@@ -94,7 +159,7 @@ cmd({
     const botImageStatus = (settings.botImage && settings.botImage !== "null") ? "Updated ✅" : "Default 🖼️";
     const displayImg = (settings.botImage && settings.botImage !== "null") ? settings.botImage : DEFAULT_IMG;
 
-    // --- 📊 Status Indicators (for full dashboard) ---
+    // --- 📊 Status Indicators ---
     const getStatus = (val) => val === 'true' ? '『 ✅ ON 』' : '『 ❌ OFF 』';
     const getAntiDeleteStatus = (val) => {
         if (val === "1") return '『 👤 USER CHAT 』';
@@ -104,12 +169,10 @@ cmd({
     const isSecurityOn = settings.badWords === "true" || settings.antiLink === "true" || settings.antiCmd === "true" || settings.antiBot === "true";
     const securityStatus = isSecurityOn ? '『 ✅ ON 』' : '『 ❌ OFF 』';
 
-    // Check if buttons are enabled
     const isButtonsOn = settings.buttons === 'true';
 
     // ---------- BUTTON MODE ----------
     if (isButtonsOn) {
-        // Full dashboard caption (for main message)
         let statusText = `⚡ *${botName.toUpperCase()} SYSTEM DASHBOARD* ⚡\n\n`;
         statusText += `*—「 BASIC CONFIGS 」—*\n\n`;
         statusText += `01. 🤖 *Bot Name:* ${botName}\n`;
@@ -136,9 +199,10 @@ cmd({
         statusText += `*💡 EDIT SETTINGS:* \n`;
         statusText += `Reply with number + value.\n`;
         statusText += `Ex: Reply *16 on* or *16 off*\n\n`;
+        statusText += `*📌 VIEW SECTIONS:*\n`;
+        statusText += `Click BASIC CONFIGS or BOT SETTINGS button below.\n\n`;
         statusText += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰`;
 
-        // Send main dashboard with two buttons
         const mainButtons = [
             {
                 buttonId: "settings_basic",
@@ -161,50 +225,62 @@ cmd({
 
         lastSettingsMessage.set(from, sentMsg.key.id);
 
-        // Listener for button clicks
-        const buttonListener = async (update) => {
+        // Listener for button clicks AND edit commands
+        const listener = async (update) => {
             try {
                 const msg = update.messages[0];
-                if (!msg?.message?.buttonsResponseMessage) return;
+                if (!msg?.message) return;
 
-                const contextInfo = msg.message.buttonsResponseMessage.contextInfo ||
-                                   msg.message.extendedTextMessage?.contextInfo;
-                if (!contextInfo || contextInfo.stanzaId !== sentMsg.key.id) return;
+                // Check if it's a reply to our sent message
+                const contextInfo = msg.message.extendedTextMessage?.contextInfo;
+                const isReplyToBot = contextInfo && contextInfo.stanzaId === sentMsg.key.id;
 
-                const btnId = msg.message.buttonsResponseMessage.selectedButtonId;
-                
-                if (btnId === "settings_basic") {
-                    // Show BASIC CONFIGS
-                    const basicText = generateBasicConfigs(settings, botName, ownerName, botPrefix, webPass, workType, botImageStatus, displayImg);
-                    await zanta.sendMessage(from, {
-                        image: { url: displayImg },
-                        caption: basicText
-                    }, { quoted: msg });
-                    await zanta.sendMessage(from, { react: { text: '⚙️', key: msg.key } });
-                } else if (btnId === "settings_bot") {
-                    // Show BOT SETTINGS
-                    const botText = generateBotSettings(settings, botName);
-                    await zanta.sendMessage(from, {
-                        image: { url: displayImg },
-                        caption: botText
-                    }, { quoted: msg });
-                    await zanta.sendMessage(from, { react: { text: '🤖', key: msg.key } });
+                // Check for button click
+                if (msg.message.buttonsResponseMessage) {
+                    const btnContext = msg.message.buttonsResponseMessage.contextInfo ||
+                                      msg.message.extendedTextMessage?.contextInfo;
+                    if (!btnContext || btnContext.stanzaId !== sentMsg.key.id) return;
+                    
+                    const btnId = msg.message.buttonsResponseMessage.selectedButtonId;
+                    if (btnId === "settings_basic") {
+                        const basicText = generateBasicConfigs(settings, botName, ownerName, botPrefix, webPass, workType, botImageStatus, displayImg);
+                        await zanta.sendMessage(from, {
+                            image: { url: displayImg },
+                            caption: basicText
+                        }, { quoted: msg });
+                        await zanta.sendMessage(from, { react: { text: '⚙️', key: msg.key } });
+                    } else if (btnId === "settings_bot") {
+                        const botText = generateBotSettings(settings, botName);
+                        await zanta.sendMessage(from, {
+                            image: { url: displayImg },
+                            caption: botText
+                        }, { quoted: msg });
+                        await zanta.sendMessage(from, { react: { text: '🤖', key: msg.key } });
+                    }
+                    return;
+                }
+
+                // Check for text reply (edit command)
+                if (isReplyToBot) {
+                    const body = msg.message.conversation || msg.message.extendedTextMessage?.text;
+                    if (body) {
+                        await handleEditCommand(body, settings, senderNumber, from, zanta, msg, reply);
+                    }
                 }
             } catch (err) {
-                console.error("Settings button listener error:", err);
+                console.error("Settings listener error:", err);
             }
         };
 
-        zanta.ev.on('messages.upsert', buttonListener);
+        zanta.ev.on('messages.upsert', listener);
         setTimeout(() => {
-            zanta.ev.off('messages.upsert', buttonListener);
+            zanta.ev.off('messages.upsert', listener);
         }, 300000);
 
         return; // End of button mode
     }
 
     // ---------- TEXT MODE (Buttons OFF) ----------
-    // Show full dashboard with options 1 and 2
     let statusText = `⚡ *${botName.toUpperCase()} SYSTEM DASHBOARD* ⚡\n\n`;
     statusText += `*—「 BASIC CONFIGS 」—*\n\n`;
     statusText += `01. 🤖 *Bot Name:* ${botName}\n`;
@@ -243,8 +319,8 @@ cmd({
 
     lastSettingsMessage.set(from, sentMsg.key.id);
 
-    // Listener for text replies (number 1 or 2)
-    const textListener = async (update) => {
+    // Listener for text replies (edit commands AND view options 1,2)
+    const listener = async (update) => {
         try {
             const msg = update.messages[0];
             if (!msg?.message) return;
@@ -255,31 +331,35 @@ cmd({
             if (!contextInfo || contextInfo.stanzaId !== sentMsg.key.id) return;
 
             const num = parseInt(body.trim());
+            // Check if it's view section request (1 or 2)
             if (num === 1) {
-                // Show BASIC CONFIGS
                 const basicText = generateBasicConfigs(settings, botName, ownerName, botPrefix, webPass, workType, botImageStatus, displayImg);
                 await zanta.sendMessage(from, {
                     image: { url: displayImg },
                     caption: basicText
                 }, { quoted: msg });
                 await zanta.sendMessage(from, { react: { text: '⚙️', key: msg.key } });
+                return;
             } else if (num === 2) {
-                // Show BOT SETTINGS
                 const botText = generateBotSettings(settings, botName);
                 await zanta.sendMessage(from, {
                     image: { url: displayImg },
                     caption: botText
                 }, { quoted: msg });
                 await zanta.sendMessage(from, { react: { text: '🤖', key: msg.key } });
+                return;
             }
+
+            // If not 1 or 2, try to handle as edit command
+            await handleEditCommand(body, settings, senderNumber, from, zanta, msg, reply);
         } catch (err) {
             console.error("Settings text listener error:", err);
         }
     };
 
-    zanta.ev.on('messages.upsert', textListener);
+    zanta.ev.on('messages.upsert', listener);
     setTimeout(() => {
-        zanta.ev.off('messages.upsert', textListener);
+        zanta.ev.off('messages.upsert', listener);
     }, 300000);
 
     // Memory Cleanup
