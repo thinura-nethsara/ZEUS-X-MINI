@@ -3,7 +3,7 @@ const axios = require("axios");
 const config = require("../config");
 
 cmd({
-    pattern: "cine",
+    pattern: "cinesubz",
     alias: ["cs", "movie"],
     react: "🎬",
     desc: "Search and download movies from CineSubz.",
@@ -260,13 +260,14 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
             return; // End of button mode
         }
 
-        // ---------- TEXT MODE (Buttons OFF) ----------
+        // ---------- TEXT MODE (Buttons OFF) - TikTok style dynamic emoji numbers ----------
         // Build numbered list for search results
         let searchList = `🎬 *CineSubz Search Results*\n\nQuery: ${query}\n\n`;
-        results.forEach((r, i) => {
-            searchList += `${i+1}. ${r.title}\n`;
+        let idx = 1;
+        results.forEach((r) => {
+            searchList += `${idx++}️⃣ ${r.title}\n`;
         });
-        searchList += `\nReply with the number of the movie (1-${results.length}).`;
+        searchList += `\nReply with the number (1-${results.length}).`;
 
         const searchMsg = await bot.sendMessage(from, {
             image: { url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQt78F5c1b_8PZM7d--5Jy77lE1FdVRq050lULngkwpq5MX7a-0tVOCJGo&s=10' },
@@ -324,13 +325,15 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                     cast = movie.cast.map(c => `${c.name}${c.role ? ` (${c.role})` : ''}`).join(', ');
                 }
 
-                // Build quality list with numbers
+                // Build quality list with TikTok style dynamic emojis
                 let qualityList = `🎬 *${title}*\n\n📋 *Available Qualities:*\n`;
-                downloads.forEach((d, i) => {
-                    qualityList += `${i+1}. ${d.quality} (${d.size || 'unknown'})\n`;
+                let qIdx = 1;
+                downloads.forEach((d) => {
+                    qualityList += `${qIdx++}️⃣ ${d.quality} (${d.size || 'unknown'})\n`;
                 });
-                qualityList += `\n${downloads.length+1}. 📑 Details Card\n`;
-                qualityList += `\nReply with the number (1-${downloads.length+1}) to download or view details.`;
+                // Details card option
+                qualityList += `\n${qIdx}️⃣ 📑 Details Card\n`;
+                qualityList += `\nReply with the number (1-${qIdx}).`;
 
                 const posterUrl = movie.backdrop || movie.poster || 'https://via.placeholder.com/300x450?text=No+Image';
 
