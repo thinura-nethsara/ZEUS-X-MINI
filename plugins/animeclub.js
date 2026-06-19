@@ -34,38 +34,26 @@ cmd({
 
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const isButtonsOn = settings.buttons === 'true';
-        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
-        // Send initial reaction
         await bot.sendMessage(from, { react: { text: '🔎', key: mek.key } });
 
-        // --- Search for anime movies ---
+        // --- Search ---
         const searchUrl = `https://animeclub-api.udmodz-2ab.workers.dev/search?q=${encodeURIComponent(query)}`;
         const { data: searchData } = await axios.get(searchUrl, { timeout: 30000 });
 
-        console.log('🔍 AnimeClub search response:', JSON.stringify(searchData, null, 2));
+        console.log('🔍 SEARCH RESPONSE:', JSON.stringify(searchData, null, 2));
 
-        // Extract results from various possible structures
         let results = [];
-        if (searchData?.data && Array.isArray(searchData.data)) {
-            results = searchData.data;
-        } else if (searchData?.results && Array.isArray(searchData.results)) {
-            results = searchData.results;
-        } else if (Array.isArray(searchData)) {
-            results = searchData;
-        } else if (searchData?.movies && Array.isArray(searchData.movies)) {
-            results = searchData.movies;
-        }
+        if (searchData?.data && Array.isArray(searchData.data)) results = searchData.data;
+        else if (searchData?.results && Array.isArray(searchData.results)) results = searchData.results;
+        else if (Array.isArray(searchData)) results = searchData;
+        else if (searchData?.movies && Array.isArray(searchData.movies)) results = searchData.movies;
 
-        if (searchData?.error) {
-            return reply(`❌ *API Error:* ${searchData.error}`);
-        }
-        if (searchData?.message) {
-            return reply(`ℹ️ *Message:* ${searchData.message}`);
-        }
+        if (searchData?.error) return reply(`❌ API Error: ${searchData.error}`);
+        if (searchData?.message) return reply(`ℹ️ ${searchData.message}`);
 
         if (!results || !results.length) {
-            return reply(`❎ No anime movies found for *"${query}"*. Try a different title.`);
+            return reply(`❎ No anime movies found for *"${query}"*.`);
         }
 
         results = results.slice(0, 10);
@@ -85,7 +73,6 @@ cmd({
                 headerType: 4
             }, { quoted: mek });
 
-            // --- Movie selection listener ---
             const movieListener = async (update) => {
                 try {
                     const m = update.messages[0];
@@ -107,51 +94,63 @@ cmd({
                     const movieUrl = selected.url;
                     if (!movieUrl) throw new Error('Movie URL not found');
 
-                    // Fetch download info
+                    // --- Fetch download info ---
                     const dlUrl = `https://animeclub-api.udmodz-2ab.workers.dev/dl?url=${encodeURIComponent(movieUrl)}`;
                     const { data: dlData } = await axios.get(dlUrl, { timeout: 30000 });
 
-                    console.log('🔽 Download response:', JSON.stringify(dlData, null, 2));
+                    console.log('🔽 DOWNLOAD RESPONSE (FULL):', JSON.stringify(dlData, null, 2));
 
-                    // Extract download info from various structures
-                    let downloadInfo = null;
-                    let fileData = null;
+                    // --- TRY MULTIPLE EXTRACTION PATHS ---
+                    let downloadUrl = null;
+                    let fileName = 'Anime.mp4';
+                    let fileSize = 'Unknown';
+                    let expiresIn = 'N/A';
 
-                    // Case 1: { status: true, result: { ... } }
-                    if (dlData?.status === true && dlData?.result) {
-                        fileData = dlData.result;
-                    }
-                    // Case 2: { success: true, data: { ... } }
-                    else if (dlData?.success === true && dlData?.data) {
-                        fileData = dlData.data;
-                    }
-                    // Case 3: direct { download, fileName, fileSize, ... }
-                    else if (dlData?.download) {
-                        fileData = dlData;
-                    }
-                    // Case 4: wrapped in data field
-                    else if (dlData?.data?.download) {
-                        fileData = dlData.data;
+                    // Helper to recursively search for a key
+                    function findKey(obj, key) {
+                        if (!obj || typeof obj !== 'object') return null;
+                        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+                        for (let k in obj) {
+                            if (typeof obj[k] === 'object') {
+                                const found = findKey(obj[k], key);
+                                if (found !== null) return found;
+                            }
+                        }
+                        return null;
                     }
 
-                    // If there's an error message
-                    if (dlData?.error) {
-                        return await bot.sendMessage(from, { text: `❌ *API Error:* ${dlData.error}` });
-                    }
-                    if (dlData?.message) {
-                        return await bot.sendMessage(from, { text: `ℹ️ *Message:* ${dlData.message}` });
+                    // Try to find 'download', 'url', 'link', 'direct_link'
+                    downloadUrl = findKey(dlData, 'download') || 
+                                  findKey(dlData, 'url') || 
+                                  findKey(dlData, 'link') || 
+                                  findKey(dlData, 'direct_link');
+
+                    // If we still have nothing, maybe the response itself is a string URL?
+                    if (!downloadUrl && typeof dlData === 'string') {
+                        downloadUrl = dlData;
                     }
 
-                    if (!fileData || !fileData.download) {
-                        return await bot.sendMessage(from, { text: '❎ No download link available.' });
+                    // If we still have nothing, maybe it's inside a 'data' field as a string?
+                    if (!downloadUrl && dlData?.data && typeof dlData.data === 'string') {
+                        downloadUrl = dlData.data;
                     }
 
-                    const fileName = fileData.fileName || fileData.filename || 'Anime.mp4';
-                    const fileSize = fileData.fileSize || fileData.size || 'Unknown';
-                    const downloadUrl = fileData.download;
-                    const expiresIn = fileData.expiresIn || fileData.expires || 'N/A';
+                    // Extract other fields
+                    fileName = findKey(dlData, 'fileName') || findKey(dlData, 'filename') || 'Anime.mp4';
+                    fileSize = findKey(dlData, 'fileSize') || findKey(dlData, 'size') || 'Unknown';
+                    expiresIn = findKey(dlData, 'expiresIn') || findKey(dlData, 'expires') || 'N/A';
 
-                    // Build details caption
+                    // If we still don't have a download URL, send the raw response to the user for debugging
+                    if (!downloadUrl) {
+                        const raw = JSON.stringify(dlData, null, 2);
+                        // Truncate if too long
+                        const msg = raw.length > 2000 ? raw.substring(0, 1900) + '...\n\n(truncated)' : raw;
+                        return await bot.sendMessage(from, {
+                            text: `❌ *No download link found.*\n\n*Raw API response:*\n\`\`\`json\n${msg}\n\`\`\``
+                        });
+                    }
+
+                    // --- Build and send details ---
                     const detailsCaption = `╭━━━〔 🎌 ANIMECLUB MOVIE 〕━━━⬣
 
 🎬 *Title:* ${selected.title || 'N/A'}
@@ -163,16 +162,8 @@ cmd({
 ✨ *⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`;
 
                     const actionButtons = [
-                        {
-                            buttonId: 'animeclub_download',
-                            buttonText: { displayText: '⬇️ Download Anime' },
-                            type: 1
-                        },
-                        {
-                            buttonId: 'animeclub_details_card',
-                            buttonText: { displayText: '📑 Details Card' },
-                            type: 1
-                        }
+                        { buttonId: 'animeclub_download', buttonText: { displayText: '⬇️ Download Anime' }, type: 1 },
+                        { buttonId: 'animeclub_details_card', buttonText: { displayText: '📑 Details Card' }, type: 1 }
                     ];
 
                     const detailMsg = await bot.sendMessage(from, {
@@ -190,15 +181,15 @@ cmd({
                             const actionMsg = actionUpdate.messages[0];
                             if (!actionMsg?.message?.buttonsResponseMessage) return;
 
-                            const contextInfo = actionMsg.message.buttonsResponseMessage.contextInfo ||
-                                               actionMsg.message.extendedTextMessage?.contextInfo;
-                            if (!contextInfo || contextInfo.stanzaId !== detailMsg.key.id) return;
+                            const ctx = actionMsg.message.buttonsResponseMessage.contextInfo ||
+                                       actionMsg.message.extendedTextMessage?.contextInfo;
+                            if (!ctx || ctx.stanzaId !== detailMsg.key.id) return;
 
                             const actionId = actionMsg.message.buttonsResponseMessage.selectedButtonId;
 
                             if (actionId === 'animeclub_details_card') {
                                 await bot.sendMessage(from, { react: { text: '📋', key: actionMsg.key } });
-                                const cleanDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
+                                const clean = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
 
 *▫️📁 𝗙𝗶𝗹𝗲𝗻𝗮𝗺𝗲 ➟ ${fileName}*
 *▫️💾 𝗦𝗶𝘇𝗲 ➟ ${fileSize}*
@@ -207,10 +198,7 @@ cmd({
 *➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*
 *👥 𝙵𝙾𝙻𝙻𝙾𝚆 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 ➟* https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o
 *➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*`;
-                                await bot.sendMessage(from, {
-                                    image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
-                                    caption: cleanDetails
-                                }, { quoted: actionMsg });
+                                await bot.sendMessage(from, { image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' }, caption: clean }, { quoted: actionMsg });
                                 return;
                             }
 
@@ -258,7 +246,9 @@ cmd({
             return;
         }
 
-        // ---------- TEXT MODE (Buttons OFF) ----------
+        // ---------- TEXT MODE ----------
+        // (same but with text replies - I'm omitting for brevity, but you can copy from previous version)
+        // Actually, let's include it to keep the plugin complete.
         let searchList = `🎌 *AnimeClub Search Results*\n\nQuery: ${query}\n\n`;
         let idx = 1;
         results.forEach((r) => {
@@ -272,7 +262,6 @@ cmd({
             caption: searchList
         }, { quoted: mek });
 
-        // --- Text listener for movie selection ---
         const movieTextListener = async (update) => {
             try {
                 const m = update.messages[0];
@@ -294,38 +283,26 @@ cmd({
                 const movieUrl = selected.url;
                 if (!movieUrl) throw new Error('Movie URL not found');
 
-                // Fetch download info
                 const dlUrl = `https://animeclub-api.udmodz-2ab.workers.dev/dl?url=${encodeURIComponent(movieUrl)}`;
                 const { data: dlData } = await axios.get(dlUrl, { timeout: 30000 });
 
-                console.log('🔽 Download response:', JSON.stringify(dlData, null, 2));
+                console.log('🔽 DOWNLOAD RESPONSE (FULL):', JSON.stringify(dlData, null, 2));
 
-                let fileData = null;
-                if (dlData?.status === true && dlData?.result) {
-                    fileData = dlData.result;
-                } else if (dlData?.success === true && dlData?.data) {
-                    fileData = dlData.data;
-                } else if (dlData?.download) {
-                    fileData = dlData;
-                } else if (dlData?.data?.download) {
-                    fileData = dlData.data;
-                }
+                let downloadUrl = findKey(dlData, 'download') || findKey(dlData, 'url') || findKey(dlData, 'link') || findKey(dlData, 'direct_link');
+                if (!downloadUrl && typeof dlData === 'string') downloadUrl = dlData;
+                if (!downloadUrl && dlData?.data && typeof dlData.data === 'string') downloadUrl = dlData.data;
 
-                if (dlData?.error) {
-                    return await bot.sendMessage(from, { text: `❌ *API Error:* ${dlData.error}` });
-                }
-                if (dlData?.message) {
-                    return await bot.sendMessage(from, { text: `ℹ️ *Message:* ${dlData.message}` });
-                }
+                const fileName = findKey(dlData, 'fileName') || findKey(dlData, 'filename') || 'Anime.mp4';
+                const fileSize = findKey(dlData, 'fileSize') || findKey(dlData, 'size') || 'Unknown';
+                const expiresIn = findKey(dlData, 'expiresIn') || findKey(dlData, 'expires') || 'N/A';
 
-                if (!fileData || !fileData.download) {
-                    return await bot.sendMessage(from, { text: '❎ No download link available.' });
+                if (!downloadUrl) {
+                    const raw = JSON.stringify(dlData, null, 2);
+                    const msg = raw.length > 2000 ? raw.substring(0, 1900) + '...' : raw;
+                    return await bot.sendMessage(from, {
+                        text: `❌ *No download link found.*\n\n*Raw API response:*\n\`\`\`json\n${msg}\n\`\`\``
+                    });
                 }
-
-                const fileName = fileData.fileName || fileData.filename || 'Anime.mp4';
-                const fileSize = fileData.fileSize || fileData.size || 'Unknown';
-                const downloadUrl = fileData.download;
-                const expiresIn = fileData.expiresIn || fileData.expires || 'N/A';
 
                 const detailCaption = `🎌 *${selected.title || 'N/A'}*
 
@@ -344,7 +321,6 @@ cmd({
 
                 bot.ev.off('messages.upsert', movieTextListener);
 
-                // --- Text listener for action ---
                 const actionTextListener = async (update2) => {
                     try {
                         const m2 = update2.messages[0];
@@ -358,7 +334,7 @@ cmd({
                         const choice = body2.trim();
                         if (choice === '2' || choice.toLowerCase() === 'details card') {
                             await bot.sendMessage(from, { react: { text: '📋', key: m2.key } });
-                            const cleanDetails = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
+                            const clean = `*☘️ 𝗧ɪᴛʟᴇ : ${selected.title || 'N/A'}*
 
 *▫️📁 𝗙𝗶𝗹𝗲𝗻𝗮𝗺𝗲 ➟ ${fileName}*
 *▫️💾 𝗦𝗶𝘇𝗲 ➟ ${fileSize}*
@@ -367,10 +343,7 @@ cmd({
 *➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*
 *👥 𝙵𝙾𝙻𝙻𝙾𝚆 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 ➟* https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o
 *➟➟➟➟➟➟➟➟➟➟➟➟➟➟➟*`;
-                            await bot.sendMessage(from, {
-                                image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' },
-                                caption: cleanDetails
-                            }, { quoted: m2 });
+                            await bot.sendMessage(from, { image: { url: 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png' }, caption: clean }, { quoted: m2 });
                             bot.ev.off('messages.upsert', actionTextListener);
                             return;
                         }
