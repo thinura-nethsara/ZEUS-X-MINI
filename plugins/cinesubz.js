@@ -1,13 +1,12 @@
 const { cmd } = require("../command");
 const axios = require("axios");
-const sharp = require("sharp");
 const config = require("../config");
 
 cmd({
     pattern: "cinesubz",
     alias: ["cs", "movie"],
     react: "🎬",
-    desc: "Search and download movies from CineSubz (Streaming version).",
+    desc: "Search and download movies from CineSubz.",
     category: "download",
     filename: __filename,
 }, async (bot, mek, m, { from, q, reply, prefix, userSettings }) => {
@@ -58,9 +57,10 @@ cmd({
             return reply("🎬 *CineSubz Downloader*\n\nExample: .cinesubz Avatar");
         }
 
+        // Send initial reaction
         await bot.sendMessage(from, { react: { text: '🔎', key: mek.key } });
 
-        // --- Search ---
+        // --- Search for movies ---
         const searchUrl = `https://apis.sadas.dev/api/v1/movie/cinesubz/search?q=${encodeURIComponent(query)}&apiKey=50d7ce3f5137b97bc64d220a3f6a33ed`;
         const { data: searchData } = await axios.get(searchUrl);
         let results = searchData?.results || searchData?.data;
@@ -69,7 +69,7 @@ cmd({
         }
         results = results.slice(0, 10);
 
-        // Build search buttons
+        // Build search result buttons
         const buttons = results.map((r, i) => ({
             buttonId: `cinesubz_movie_${i}`,
             buttonText: { displayText: `🎬 ${r.title?.substring(0, 30)}` },
@@ -91,6 +91,7 @@ cmd({
 
                 const contextInfo = m.message.buttonsResponseMessage.contextInfo ||
                                    m.message.extendedTextMessage?.contextInfo;
+                // Ensure it's a reply to our search message
                 if (!contextInfo || contextInfo.stanzaId !== searchMsg.key.id) return;
 
                 const btnId = m.message.buttonsResponseMessage.selectedButtonId;
@@ -131,7 +132,7 @@ cmd({
                     cast = movie.cast.map(c => `${c.name}${c.role ? ` (${c.role})` : ''}`).join(', ');
                 }
 
-                // Build caption
+                // Build quality caption
                 let fullCaption = `
 ╭━━━〔 🎬 CINE SUBZ DETAILS 〕━━━⬣
 
@@ -172,7 +173,7 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                     headerType: 4
                 }, { quoted: mek });
 
-                // Remove search listener
+                // Remove the search listener now
                 bot.ev.off('messages.upsert', movieListener);
 
                 // --- Quality / Details action listener ---
@@ -222,40 +223,18 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                             const usableUrl = selectBestLink(links);
                             if (!usableUrl) throw new Error('No usable download link found');
 
-                            let thumbnail = null;
-                            try {
-                                const thumbRes = await axios.get(posterUrl, { responseType: 'arraybuffer', timeout: 10000 });
-                                thumbnail = await sharp(thumbRes.data).resize(320, 320).jpeg({ quality: 70 }).toBuffer();
-                            } catch (e) { console.warn('Thumbnail failed:', e.message); }
-
+                            // Removed sharp and thumbnail generation to save RAM
                             const safeTitle = title.replace(/[^\w\s]/g, '');
                             const fileName = `🎬ZEUS-X-MINI🎬${safeTitle} (${selectedQuality.quality}).mkv`;
+                            await bot.sendMessage(from, {
+                                document: { url: usableUrl },
+                                mimetype: 'video/mp4',
+                                fileName: fileName,
+                                // No jpegThumbnail to save RAM
+                                caption: `*𝗧ɪᴛʟᴇ : ${title}*\n\n \`[${selectedQuality.quality} ${selectedQuality.size || 'N/A'}]\` \n\n*⏤͟͟͞͞★❮ 𝗭𝗘𝗨𝗦 𝗫 𝗠𝗜𝗡𝗜 〽️𝗢𝗩𝗜𝗘𝗦 ❯⏤͟͟͞͞★*`
+                            }, { quoted: actionMsg });
 
-                            // ========== STREAMING IMPLEMENTATION ==========
-                            // Download the file as a stream and send directly without storing in RAM
-                            try {
-                                const fileStream = await axios({
-                                    method: 'get',
-                                    url: usableUrl,
-                                    responseType: 'stream',
-                                    timeout: 300000, // 5 minutes
-                                }).then(res => res.data);
-
-                                await bot.sendMessage(from, {
-                                    document: { stream: fileStream },
-                                    mimetype: 'video/mp4',
-                                    fileName: fileName,
-                                    jpegThumbnail: thumbnail,
-                                    caption: `*𝗧ɪᴛʟᴇ : ${title}*\n\n \`[${selectedQuality.quality} ${selectedQuality.size || 'N/A'}]\` \n\n*⏤͟͟͞͞★❮ 𝗭𝗘𝗨𝗦 𝗫 𝗠𝗜𝗡𝗜 〽️𝗢𝗩𝗜𝗘𝗦 ❯⏤͟͟͞͞★*`
-                                }, { quoted: actionMsg });
-
-                                bot.ev.off('messages.upsert', actionListener);
-                            } catch (streamErr) {
-                                console.error('Stream error:', streamErr);
-                                await bot.sendMessage(from, { text: `❌ ගොනුව බාගත කිරීමේ දෝෂය: ${streamErr.message}` });
-                                bot.ev.off('messages.upsert', actionListener);
-                            }
-                            // ==============================================
+                            bot.ev.off('messages.upsert', actionListener);
                         }
                     } catch (err) {
                         console.error('Action error:', err);
