@@ -26,25 +26,27 @@ cmd({
         }
     }
 
-    // ✅ GDrive Direct Download API function
+    // ✅ Ominisave GDrive Direct Download API function
     async function getGDriveDirectLink(gdriveUrl) {
         try {
-            const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/gdrive?url=${encodeURIComponent(gdriveUrl)}&apiKey=key_faa62e4037a95cda`;
+            // Ominisave API endpoint
+            const apiUrl = `https://www.ominisave.com/api/gdrive?url=${encodeURIComponent(gdriveUrl)}`;
             const { data } = await axios.get(apiUrl, { timeout: 30000 });
-            console.log('🔽 GDRIVE API RESPONSE:', JSON.stringify(data, null, 2));
+            console.log('🔽 OMINISAVE GDRIVE API RESPONSE:', JSON.stringify(data, null, 2));
             
             if (data?.status === true && data?.result?.download) {
                 return {
-                    directUrl: data.result.download,   // ✅ API එකෙන් එන direct download URL එක
+                    directUrl: data.result.download,   // ✅ Direct download URL
                     fileName: data.result.fileName || 'file.mp4',
-                    fileSize: data.result.fileSize || 'Unknown'
+                    fileSize: data.result.fileSize || 'Unknown',
+                    expiresIn: data.result.expiresIn || 'N/A'
                 };
             }
             // Fallback: API එක fail උනොත් original URL එකම use කරන්න
-            return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown' };
+            return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown', expiresIn: 'N/A' };
         } catch (err) {
-            console.error('❌ GDrive API error:', err.message);
-            return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown' };
+            console.error('❌ Ominisave GDrive API error:', err.message);
+            return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown', expiresIn: 'N/A' };
         }
     }
 
@@ -228,20 +230,22 @@ cmd({
                                 let downloadUrl = url;
                                 let fileName = `${title}.mp4`;
                                 let fileSize = 'Unknown';
+                                let expiresIn = 'N/A';
 
                                 if (url.includes('drive.google.com')) {
                                     try {
-                                        // ✅ Call GDrive Direct Download API
+                                        // ✅ Call Ominisave GDrive Direct Download API
                                         const gdriveResult = await getGDriveDirectLink(url);
                                         downloadUrl = gdriveResult.directUrl;   // ✅ API එකෙන් එන direct download URL එක
                                         fileName = gdriveResult.fileName;
                                         fileSize = gdriveResult.fileSize;
+                                        expiresIn = gdriveResult.expiresIn;
                                         
                                         await bot.sendMessage(from, { 
-                                            text: `⏳ *Processing Google Drive link...*\n📁 *File:* ${fileName}\n💾 *Size:* ${fileSize}` 
+                                            text: `⏳ *Processing Google Drive link via Ominisave...*\n📁 *File:* ${fileName}\n💾 *Size:* ${fileSize}\n⏳ *Expires:* ${expiresIn}` 
                                         }, { quoted: actionMsg });
                                     } catch (err) {
-                                        console.error('GDrive processing error:', err);
+                                        console.error('Ominisave GDrive processing error:', err);
                                         await bot.sendMessage(from, { 
                                             text: `⚠️ *Could not process GDrive link. Trying direct URL...*` 
                                         }, { quoted: actionMsg });
@@ -258,12 +262,12 @@ cmd({
                                 const safeTitle = title.replace(/[^\w\s]/g, '');
                                 const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
 
-                                // ✅ Send Document with Direct Download URL
+                                // ✅ Send Document with Direct Download URL from Ominisave API
                                 await bot.sendMessage(from, {
                                     document: { url: downloadUrl },
                                     mimetype: 'video/mp4',
                                     fileName: sendFileName,
-                                    caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                    caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n*Expires:* ${expiresIn}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                     jpegThumbnail: thumb
                                 }, { quoted: actionMsg });
 
@@ -404,6 +408,7 @@ cmd({
                             let downloadUrl = url;
                             let fileName = `${title}.mp4`;
                             let fileSize = 'Unknown';
+                            let expiresIn = 'N/A';
 
                             if (url.includes('drive.google.com')) {
                                 try {
@@ -411,11 +416,12 @@ cmd({
                                     downloadUrl = gdriveResult.directUrl;
                                     fileName = gdriveResult.fileName;
                                     fileSize = gdriveResult.fileSize;
+                                    expiresIn = gdriveResult.expiresIn;
                                     await bot.sendMessage(from, { 
-                                        text: `⏳ *Processing Google Drive link...*\n📁 *File:* ${fileName}\n💾 *Size:* ${fileSize}` 
+                                        text: `⏳ *Processing Google Drive link via Ominisave...*\n📁 *File:* ${fileName}\n💾 *Size:* ${fileSize}\n⏳ *Expires:* ${expiresIn}` 
                                     }, { quoted: m2 });
                                 } catch (err) {
-                                    console.error('GDrive processing error:', err);
+                                    console.error('Ominisave GDrive processing error:', err);
                                     await bot.sendMessage(from, { 
                                         text: `⚠️ *Could not process GDrive link. Trying direct URL...*` 
                                     }, { quoted: m2 });
@@ -435,7 +441,7 @@ cmd({
                                 document: { url: downloadUrl },
                                 mimetype: 'video/mp4',
                                 fileName: sendFileName,
-                                caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
+                                caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n*Expires:* ${expiresIn}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
                                 jpegThumbnail: thumb
                             }, { quoted: m2 });
 
