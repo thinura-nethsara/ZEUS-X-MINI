@@ -439,7 +439,7 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                             mimetype: 'video/mp4',
                             fileName: fileName,
                             jpegThumbnail: thumbnail, // ✅ Thumbnail added here
-                            caption: `*𝗧ɪᴛʟᴇ : ${title}*\n\n \`[${selectedQuality.quality} ${selectedQuality.size || 'N/A'}]\` \n\n*⏤͟͟͞͞★❮ 𝗭𝗘𝗨𝗦 𝗫 〽️𝗢𝗩𝗜𝗘𝗦 ❯⏤͟͟͞͞★*`
+                            caption: `*𝗧ɪᴛʟᴇ : ${title}*\n\n \`[${selectedQuality.quality} ${selectedQuality.size || 'N/A'}]\` \n\n*⏤͟͟͞͞★❮ 𝗭𝗘𝗨𝗦 𝗫  〽️𝗢𝗩𝗜𝗘𝗦 ❯⏤͟͟͞͞★*`
                         }, { quoted: m2 });
 
                         bot.ev.off('messages.upsert', qualityTextListener);
