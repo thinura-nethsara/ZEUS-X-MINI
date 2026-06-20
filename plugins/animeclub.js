@@ -26,27 +26,67 @@ cmd({
         }
     }
 
-    // ✅ Ominisave GDrive Direct Download API function
+    // ✅ Ominisave GDrive Direct Download API - returns direct URL
     async function getGDriveDirectLink(gdriveUrl) {
         try {
-            // Ominisave API endpoint
             const apiUrl = `https://www.ominisave.com/api/gdrive?url=${encodeURIComponent(gdriveUrl)}`;
             const { data } = await axios.get(apiUrl, { timeout: 30000 });
-            console.log('🔽 OMINISAVE GDRIVE API RESPONSE:', JSON.stringify(data, null, 2));
+            console.log('🔽 OMINISAVE API RESPONSE:', JSON.stringify(data, null, 2));
             
             if (data?.status === true && data?.result?.download) {
                 return {
-                    directUrl: data.result.download,   // ✅ Direct download URL
+                    directUrl: data.result.download,
                     fileName: data.result.fileName || 'file.mp4',
                     fileSize: data.result.fileSize || 'Unknown',
                     expiresIn: data.result.expiresIn || 'N/A'
                 };
             }
-            // Fallback: API එක fail උනොත් original URL එකම use කරන්න
             return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown', expiresIn: 'N/A' };
         } catch (err) {
-            console.error('❌ Ominisave GDrive API error:', err.message);
+            console.error('❌ Ominisave API error:', err.message);
             return { directUrl: gdriveUrl, fileName: 'file.mp4', fileSize: 'Unknown', expiresIn: 'N/A' };
+        }
+    }
+
+    // ✅ Function to send file using stream (to avoid small error pages)
+    async function sendFileAsStream(from, downloadUrl, fileName, caption, thumbnail, quoted) {
+        try {
+            // Fetch the file as a stream
+            const response = await axios.get(downloadUrl, {
+                responseType: 'stream',
+                timeout: 120000,
+                maxRedirects: 5,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+
+            // Send as document with stream
+            await bot.sendMessage(from, {
+                document: { stream: response.data },
+                mimetype: 'video/mp4',
+                fileName: fileName,
+                caption: caption,
+                jpegThumbnail: thumbnail
+            }, { quoted: quoted });
+
+            return true;
+        } catch (err) {
+            console.error('❌ Stream send failed:', err.message);
+            // Fallback: try sending with URL
+            try {
+                await bot.sendMessage(from, {
+                    document: { url: downloadUrl },
+                    mimetype: 'video/mp4',
+                    fileName: fileName,
+                    caption: caption,
+                    jpegThumbnail: thumbnail
+                }, { quoted: quoted });
+                return true;
+            } catch (fallbackErr) {
+                console.error('❌ Fallback send failed:', fallbackErr.message);
+                throw fallbackErr;
+            }
         }
     }
 
@@ -132,7 +172,7 @@ cmd({
                     const links = dlData.links || {};
                     const linkEntries = Object.entries(links);
 
-                    // Filter direct download links (prefer "Direct Download" or GDrive)
+                    // Filter direct download links
                     const directLinks = linkEntries.filter(([key, value]) => {
                         const isDirect = key.includes('Direct Download') || 
                                          value.includes('thenuxgdrive.netlify.app') || 
@@ -236,7 +276,7 @@ cmd({
                                     try {
                                         // ✅ Call Ominisave GDrive Direct Download API
                                         const gdriveResult = await getGDriveDirectLink(url);
-                                        downloadUrl = gdriveResult.directUrl;   // ✅ API එකෙන් එන direct download URL එක
+                                        downloadUrl = gdriveResult.directUrl;
                                         fileName = gdriveResult.fileName;
                                         fileSize = gdriveResult.fileSize;
                                         expiresIn = gdriveResult.expiresIn;
@@ -245,7 +285,7 @@ cmd({
                                             text: `⏳ *Processing Google Drive link via Ominisave...*\n📁 *File:* ${fileName}\n💾 *Size:* ${fileSize}\n⏳ *Expires:* ${expiresIn}` 
                                         }, { quoted: actionMsg });
                                     } catch (err) {
-                                        console.error('Ominisave GDrive processing error:', err);
+                                        console.error('Ominisave API error:', err);
                                         await bot.sendMessage(from, { 
                                             text: `⚠️ *Could not process GDrive link. Trying direct URL...*` 
                                         }, { quoted: actionMsg });
@@ -261,17 +301,25 @@ cmd({
 
                                 const safeTitle = title.replace(/[^\w\s]/g, '');
                                 const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
+                                const caption = `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n*Expires:* ${expiresIn}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`;
 
-                                // ✅ Send Document with Direct Download URL from Ominisave API
-                                await bot.sendMessage(from, {
-                                    document: { url: downloadUrl },
-                                    mimetype: 'video/mp4',
-                                    fileName: sendFileName,
-                                    caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n*Expires:* ${expiresIn}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
-                                    jpegThumbnail: thumb
-                                }, { quoted: actionMsg });
+                                // ✅ Send file using stream (to avoid 2.3KB error pages)
+                                try {
+                                    await sendFileAsStream(from, downloadUrl, sendFileName, caption, thumb, actionMsg);
+                                    await bot.sendMessage(from, { react: { text: '✅', key: actionMsg.key } });
+                                } catch (streamErr) {
+                                    console.error('Stream send error:', streamErr);
+                                    // Fallback: send with URL
+                                    await bot.sendMessage(from, {
+                                        document: { url: downloadUrl },
+                                        mimetype: 'video/mp4',
+                                        fileName: sendFileName,
+                                        caption: caption,
+                                        jpegThumbnail: thumb
+                                    }, { quoted: actionMsg });
+                                    await bot.sendMessage(from, { react: { text: '✅', key: actionMsg.key } });
+                                }
 
-                                await bot.sendMessage(from, { react: { text: '✅', key: actionMsg.key } });
                                 bot.ev.off('messages.upsert', actionListener);
                             }
                         } catch (err) {
@@ -421,7 +469,7 @@ cmd({
                                         text: `⏳ *Processing Google Drive link via Ominisave...*\n📁 *File:* ${fileName}\n💾 *Size:* ${fileSize}\n⏳ *Expires:* ${expiresIn}` 
                                     }, { quoted: m2 });
                                 } catch (err) {
-                                    console.error('Ominisave GDrive processing error:', err);
+                                    console.error('Ominisave API error:', err);
                                     await bot.sendMessage(from, { 
                                         text: `⚠️ *Could not process GDrive link. Trying direct URL...*` 
                                     }, { quoted: m2 });
@@ -436,16 +484,23 @@ cmd({
 
                             const safeTitle = title.replace(/[^\w\s]/g, '');
                             const sendFileName = `🎌ZEUS-X-MINI🎌${safeTitle}.mp4`;
+                            const caption = `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n*Expires:* ${expiresIn}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`;
 
-                            await bot.sendMessage(from, {
-                                document: { url: downloadUrl },
-                                mimetype: 'video/mp4',
-                                fileName: sendFileName,
-                                caption: `*${title}*\n\n*Link:* ${key}\n*Size:* ${fileSize}\n*Expires:* ${expiresIn}\n\n*⏤͟͟͞͞★❮ ZEUS X MINI 〽️ ANIME ❯⏤͟͟͞͞★*`,
-                                jpegThumbnail: thumb
-                            }, { quoted: m2 });
+                            try {
+                                await sendFileAsStream(from, downloadUrl, sendFileName, caption, thumb, m2);
+                                await bot.sendMessage(from, { react: { text: '✅', key: m2.key } });
+                            } catch (streamErr) {
+                                console.error('Stream send error:', streamErr);
+                                await bot.sendMessage(from, {
+                                    document: { url: downloadUrl },
+                                    mimetype: 'video/mp4',
+                                    fileName: sendFileName,
+                                    caption: caption,
+                                    jpegThumbnail: thumb
+                                }, { quoted: m2 });
+                                await bot.sendMessage(from, { react: { text: '✅', key: m2.key } });
+                            }
 
-                            await bot.sendMessage(from, { react: { text: '✅', key: m2.key } });
                             bot.ev.off('messages.upsert', actionTextListener);
                         }
                     } catch (err) {
