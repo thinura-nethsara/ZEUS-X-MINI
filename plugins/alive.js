@@ -5,10 +5,9 @@ const axios = require('axios');
 const CHANNEL_JID = "120363425542933159@newsletter";
 
 // ============================================
-// 🟢 ALIVE MESSAGE FUNCTION - PREFIX DYNAMIC
+// 🟢 ALIVE MESSAGE FUNCTION - NEW DESIGN
 // ============================================
 function getAliveMessage(botInfo = {}) {
-    // ශ්‍රී ලාංකික වේලාව (UTC+5:30)
     const now = new Date();
     const sriLankaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
     
@@ -24,36 +23,35 @@ function getAliveMessage(botInfo = {}) {
         hour12: false 
     });
 
-    // Dynamic Greeting
     const hour = sriLankaTime.getHours();
     let greeting = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ ☀️";
     if (hour >= 12 && hour < 17) greeting = "ɢᴏᴏᴅ ᴀꜰᴛᴇʀɴᴏᴏɴ 🌤️";
     else if (hour >= 17 && hour < 21) greeting = "ɢᴏᴏᴅ ᴇᴠᴇɴɪɴɢ 🌅";
     else if (hour >= 21 || hour < 5) greeting = "ɢᴏᴏᴅ ɴɪɢʜᴛ 🌙";
 
-    // Uptime
     const uptimeSec = botInfo.uptime || 0;
     const days = Math.floor(uptimeSec / 86400);
     const hours = Math.floor((uptimeSec % 86400) / 3600);
     const mins = Math.floor((uptimeSec % 3600) / 60);
     const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
 
-    // 🟢 PREFIX DYNAMIC - Config එකෙන් හෝ botInfo වලින් ගන්න
-    // පළමුව botInfo වලින්, නැත්නම් config වලින්, නැත්නම් default එක
     const prefix = botInfo.prefix || config.DEFAULT_PREFIX || '/';
 
+    // 🆕 නව Design
     return `
-◈◈◈◈◈◈◈◈◈◈◈
-✦ ─── *${botInfo.botName || 'ZEUS XMD'}* ─── ✦
-◈◈◈◈◈◈◈◈◈◈◈
-${greeting} ✨
-\`✦  ᴘʀᴇꜰɪx   :  ${prefix}\`
-\`✦  ᴅᴀᴛᴇ     :  ${date}\`
-\`✦  ᴛɪᴍᴇ     :  ${time}\`
-\`✦  ᴜᴘᴛɪᴍᴇ  :  ${uptimeStr}\`
-◈◈◈◈◈◈◈◈◈◈◈
-*“ ʀᴇᴀᴅʏ ᴛᴏ ᴀꜱꜱɪꜱᴛ ”*
-*⚡ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴇᴜꜱ ɪɴᴄ ⚡*
+>================================<
+  >  ${botInfo.botName || 'ZEUS XMD'}  <
+  >  SYSTEM : ONLINE  <
+>================================<
+  > *${greeting}*
+  > *DATE*: ${date}
+  > *TIME* : ${time}
+  > *UPTIME* : ${uptimeStr}
+  > *PREFIX* : ${prefix}
+>================================<
+  > “Ready to assist”
+  > POWERED BY ZEUS INC
+>================================<
 `;
 }
 // ============================================
@@ -89,18 +87,13 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
     try {
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
-        
-        // 🟢 PREFIX එක Dynamic විදියට ගන්න
         const prefix = settings.prefix || config.DEFAULT_PREFIX || ".";
         const isButtonsOn = settings.buttons === 'true';
-
-        // Uptime ගණනය
         const uptime = process.uptime();
 
-        // 🟢 getAliveMessage call කරන්න - මෙතනදි prefix එක pass කරනවා
         const finalMsg = getAliveMessage({
             botName: botName,
-            prefix: prefix,  // 🟢 මෙතනින් update වෙන prefix එක pass වෙනවා
+            prefix: prefix,
             uptime: uptime
         });
 
@@ -116,7 +109,6 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
                 ptt: false,
                 fileName: 'Alive.mp3'
             }, { quoted: mek });
-
         } catch (voiceError) {
             console.error("[ALIVE VOICE ERROR]", voiceError.message);
         }
@@ -130,7 +122,6 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
         }
 
         if (isButtonsOn) {
-            // --- 🔵 BUTTONS ON MODE ---
             return await zanta.sendMessage(from, {
                 image: imageToDisplay,
                 caption: finalMsg,
@@ -151,9 +142,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
                     }
                 }
             }, { quoted: mek });
-
         } else {
-            // --- 🟢 BUTTONS OFF MODE ---
             return await zanta.sendMessage(from, {
                 image: imageToDisplay,
                 caption: finalMsg,
