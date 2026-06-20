@@ -1,5 +1,6 @@
 const { cmd } = require("../command");
 const axios = require("axios");
+const sharp = require("sharp");
 const config = require("../config");
 
 cmd({
@@ -51,6 +52,23 @@ cmd({
         return null;
     }
 
+    // Function to generate thumbnail from image URL
+    async function getThumbnail(imageUrl) {
+        try {
+            const response = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 15000
+            });
+            return await sharp(response.data)
+                .resize(320, 320, { fit: 'cover' })
+                .jpeg({ quality: 70 })
+                .toBuffer();
+        } catch (err) {
+            console.warn('⚠️ Thumbnail generation failed:', err.message);
+            return null;
+        }
+    }
+
     try {
         const query = q.trim();
         if (!query) {
@@ -61,7 +79,6 @@ cmd({
         const isButtonsOn = settings.buttons === 'true';
         const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
-        // Send initial reaction
         await bot.sendMessage(from, { react: { text: '🔎', key: mek.key } });
 
         // --- Search for movies ---
@@ -75,7 +92,6 @@ cmd({
 
         // ---------- BUTTON MODE ----------
         if (isButtonsOn) {
-            // Build search result buttons
             const buttons = results.map((r, i) => ({
                 buttonId: `cinesubz_movie_${i}`,
                 buttonText: { displayText: `🎬 ${r.title?.substring(0, 30)}` },
@@ -89,7 +105,6 @@ cmd({
                 headerType: 4
             }, { quoted: mek });
 
-            // --- Movie selection listener ---
             const movieListener = async (update) => {
                 try {
                     const m = update.messages[0];
@@ -111,7 +126,6 @@ cmd({
                     const movieUrl = selected.link || selected.url;
                     if (!movieUrl) throw new Error('Movie URL not found');
 
-                    // Fetch movie details
                     const infoUrl = `https://apis.sadas.dev/api/v1/movie/cinesubz/info?q=${encodeURIComponent(movieUrl)}&apiKey=50d7ce3f5137b97bc64d220a3f6a33ed`;
                     const { data: infoData } = await axios.get(infoUrl);
                     const movie = infoData?.result || infoData?.data;
@@ -137,7 +151,6 @@ cmd({
                         cast = movie.cast.map(c => `${c.name}${c.role ? ` (${c.role})` : ''}`).join(', ');
                     }
 
-                    // Build quality caption
                     let fullCaption = `
 ╭━━━〔 🎬 CINE SUBZ DETAILS 〕━━━⬣
 
@@ -152,7 +165,6 @@ ${downloads.map(d => `➤ ${d.quality} (${d.size || 'unknown'})`).join('\n')}
 https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                     if (fullCaption.length > 4000) fullCaption = fullCaption.substring(0, 3970) + '…\n╰━━━━━━━━━━━━━━━━━━⬣';
 
-                    // Build quality buttons
                     const qualityButtons = downloads.map((dl, i) => ({
                         buttonId: `cinesubz_quality_${i}`,
                         buttonText: {
@@ -178,10 +190,8 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                         headerType: 4
                     }, { quoted: mek });
 
-                    // Remove the search listener now
                     bot.ev.off('messages.upsert', movieListener);
 
-                    // --- Quality / Details action listener ---
                     const actionListener = async (actionUpdate) => {
                         try {
                             const actionMsg = actionUpdate.messages[0];
@@ -228,12 +238,22 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                                 const usableUrl = selectBestLink(links);
                                 if (!usableUrl) throw new Error('No usable download link found');
 
+                                // ✅ Generate thumbnail from poster URL
+                                let thumbnail = null;
+                                try {
+                                    thumbnail = await getThumbnail(posterUrl);
+                                } catch (e) {
+                                    console.warn('Thumbnail generation skipped:', e.message);
+                                }
+
                                 const safeTitle = title.replace(/[^\w\s]/g, '');
                                 const fileName = `🎬ZEUS-X-MINI🎬${safeTitle} (${selectedQuality.quality}).mkv`;
+
                                 await bot.sendMessage(from, {
                                     document: { url: usableUrl },
                                     mimetype: 'video/mp4',
                                     fileName: fileName,
+                                    jpegThumbnail: thumbnail, // ✅ Thumbnail added here
                                     caption: `*𝗧ɪᴛʟᴇ : ${title}*\n\n \`[${selectedQuality.quality} ${selectedQuality.size || 'N/A'}]\` \n\n*⏤͟͟͞͞★❮ 𝗭𝗘𝗨𝗦 𝗫 𝗠𝗜𝗡𝗜 〽️𝗢𝗩𝗜𝗘𝗦 ❯⏤͟͟͞͞★*`
                                 }, { quoted: actionMsg });
 
@@ -257,11 +277,10 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
 
             bot.ev.on('messages.upsert', movieListener);
             setTimeout(() => bot.ev.off('messages.upsert', movieListener), 300000);
-            return; // End of button mode
+            return;
         }
 
-        // ---------- TEXT MODE (Buttons OFF) - TikTok style dynamic emoji numbers ----------
-        // Build numbered list for search results (using dynamic emojis like 1️⃣, 2️⃣, ...)
+        // ---------- TEXT MODE (Buttons OFF) ----------
         let searchList = `🎬 *CineSubz Search Results*\n\nQuery: ${query}\n\n`;
         let idx = 1;
         results.forEach((r) => {
@@ -274,7 +293,6 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
             caption: searchList
         }, { quoted: mek });
 
-        // Listener for movie selection
         const movieTextListener = async (update) => {
             try {
                 const m = update.messages[0];
@@ -282,13 +300,12 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                 const body = m.message.conversation || m.message.extendedTextMessage?.text;
                 if (!body) return;
 
-                // Check if it's a reply to our search message
                 const contextInfo = m.message.extendedTextMessage?.contextInfo;
                 if (!contextInfo || contextInfo.stanzaId !== searchMsg.key.id) return;
 
                 const selectedNum = parseInt(body.trim());
                 if (isNaN(selectedNum) || selectedNum < 1 || selectedNum > results.length) {
-                    return; // ignore invalid
+                    return;
                 }
 
                 const selected = results[selectedNum - 1];
@@ -299,7 +316,6 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                 const movieUrl = selected.link || selected.url;
                 if (!movieUrl) throw new Error('Movie URL not found');
 
-                // Fetch movie details
                 const infoUrl = `https://apis.sadas.dev/api/v1/movie/cinesubz/info?q=${encodeURIComponent(movieUrl)}&apiKey=50d7ce3f5137b97bc64d220a3f6a33ed`;
                 const { data: infoData } = await axios.get(infoUrl);
                 const movie = infoData?.result || infoData?.data;
@@ -325,13 +341,11 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                     cast = movie.cast.map(c => `${c.name}${c.role ? ` (${c.role})` : ''}`).join(', ');
                 }
 
-                // Build quality list with TikTok style dynamic emojis
                 let qualityList = `🎬 *${title}*\n\n📋 *Available Qualities:*\n`;
                 let qIdx = 1;
                 downloads.forEach((d) => {
                     qualityList += `${qIdx++}️⃣ ${d.quality} (${d.size || 'unknown'})\n`;
                 });
-                // Details card option
                 qualityList += `\n${qIdx}️⃣ 📑 Details Card\n`;
                 qualityList += `\nReply with the number (1-${qIdx}).`;
 
@@ -342,10 +356,8 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                     caption: qualityList
                 }, { quoted: mek });
 
-                // Remove the search listener
                 bot.ev.off('messages.upsert', movieTextListener);
 
-                // Listener for quality selection
                 const qualityTextListener = async (update2) => {
                     try {
                         const m2 = update2.messages[0];
@@ -359,7 +371,6 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                         const selectedNum2 = parseInt(body2.trim());
                         if (isNaN(selectedNum2)) return;
 
-                        // Check if it's details card (last option)
                         if (selectedNum2 === downloads.length + 1) {
                             await bot.sendMessage(from, { react: { text: '📋', key: m2.key } });
                             const cleanDetailsCaption = `*☘️ 𝗧ɪᴛʟᴇ : ${title}*
@@ -381,7 +392,6 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                             return;
                         }
 
-                        // Quality selection
                         if (selectedNum2 < 1 || selectedNum2 > downloads.length) return;
                         const selectedQuality = downloads[selectedNum2 - 1];
                         if (!selectedQuality) return;
@@ -396,12 +406,22 @@ https://whatsapp.com/channel/0029VbCe8YW84OmKiJkDfk3o`.trim();
                         const usableUrl = selectBestLink(links);
                         if (!usableUrl) throw new Error('No usable download link found');
 
+                        // ✅ Generate thumbnail from poster URL
+                        let thumbnail = null;
+                        try {
+                            thumbnail = await getThumbnail(posterUrl);
+                        } catch (e) {
+                            console.warn('Thumbnail generation skipped:', e.message);
+                        }
+
                         const safeTitle = title.replace(/[^\w\s]/g, '');
                         const fileName = `🎬ZEUS-X-MINI🎬${safeTitle} (${selectedQuality.quality}).mkv`;
+
                         await bot.sendMessage(from, {
                             document: { url: usableUrl },
                             mimetype: 'video/mp4',
                             fileName: fileName,
+                            jpegThumbnail: thumbnail, // ✅ Thumbnail added here
                             caption: `*𝗧ɪᴛʟᴇ : ${title}*\n\n \`[${selectedQuality.quality} ${selectedQuality.size || 'N/A'}]\` \n\n*⏤͟͟͞͞★❮ 𝗭𝗘𝗨𝗦 𝗫 𝗠𝗜𝗡𝗜 〽️𝗢𝗩𝗜𝗘𝗦 ❯⏤͟͟͞͞★*`
                         }, { quoted: m2 });
 
