@@ -3,20 +3,29 @@ const axios = require("axios");
 const yts = require("yt-search");
 const config = require("../config");
 const fs = require('fs');
-const fetch = require('node-fetch');
+const sharp = require('sharp');
 
-// Helper Functions
+// Helper Functions - Using axios instead of fetch
 const fetchJson = async (url) => {
-    const response = await fetch(url);
-    return response.json();
+    try {
+        const response = await axios.get(url, { timeout: 30000 });
+        return response.data;
+    } catch (e) {
+        console.error('fetchJson error:', e.message);
+        throw e;
+    }
 };
 
 const resizeImage = async (buffer, width, height) => {
-    const sharp = require('sharp');
-    return await sharp(buffer)
-        .resize(width, height, { fit: 'cover' })
-        .jpeg({ quality: 80 })
-        .toBuffer();
+    try {
+        return await sharp(buffer)
+            .resize(width, height, { fit: 'cover' })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+    } catch (e) {
+        console.error('resizeImage error:', e.message);
+        return buffer;
+    }
 };
 
 cmd({
@@ -277,13 +286,17 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
             return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
         }
 
-        // Generate thumbnail
+        // Generate thumbnail using axios
         let thumbnailBuffer = null;
         try {
-            const thumbRes = await fetch(thumbUrl);
-            const thumbArrayBuffer = await thumbRes.arrayBuffer();
-            thumbnailBuffer = Buffer.from(thumbArrayBuffer);
-        } catch(e) {}
+            const thumbResponse = await axios.get(thumbUrl, { 
+                responseType: 'arraybuffer',
+                timeout: 15000 
+            });
+            thumbnailBuffer = Buffer.from(thumbResponse.data);
+        } catch(e) {
+            console.log('Thumbnail fetch failed:', e.message);
+        }
 
         await bot.sendMessage(from, { react: { text: '⬆️', key: mek.key } });
 
@@ -323,13 +336,26 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
             return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
         }
 
-        // Generate thumbnail
+        // Generate thumbnail using axios
         let thumbnailBuffer = null;
         try {
-            const thumbRes = await fetch(thumbUrl);
-            const thumbArrayBuffer = await thumbRes.arrayBuffer();
-            thumbnailBuffer = Buffer.from(thumbArrayBuffer);
-        } catch(e) {}
+            const thumbResponse = await axios.get(thumbUrl, { 
+                responseType: 'arraybuffer',
+                timeout: 15000 
+            });
+            const rawBuffer = Buffer.from(thumbResponse.data);
+            // Resize thumbnail if sharp is available
+            try {
+                thumbnailBuffer = await sharp(rawBuffer)
+                    .resize(200, 200, { fit: 'cover' })
+                    .jpeg({ quality: 80 })
+                    .toBuffer();
+            } catch (sharpError) {
+                thumbnailBuffer = rawBuffer;
+            }
+        } catch(e) {
+            console.log('Thumbnail fetch failed:', e.message);
+        }
 
         await bot.sendMessage(from, { react: { text: '⬆️', key: mek.key } });
 
@@ -373,10 +399,12 @@ async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
             return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
         }
 
-        // Download video
-        const videoResponse = await fetch(downloadUrl);
-        const videoArrayBuffer = await videoResponse.arrayBuffer();
-        const videoBuffer = Buffer.from(videoArrayBuffer);
+        // Download video using axios
+        const videoResponse = await axios.get(downloadUrl, { 
+            responseType: 'arraybuffer',
+            timeout: 120000 
+        });
+        const videoBuffer = Buffer.from(videoResponse.data);
 
         await bot.sendMessage(from, { react: { text: '🔄', key: mek.key } });
 
