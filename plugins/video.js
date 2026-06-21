@@ -211,7 +211,6 @@ cmd({
 }, async (bot, mek, m, { from, q, reply }) => {
     try {
         if (!q) return await reply('❌ Need a YouTube URL!');
-        // Remove the command prefix if present (button sends it)
         let data = q;
         if (data.startsWith('vd_work ')) {
             data = data.slice('vd_work '.length);
@@ -281,17 +280,21 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
 
-        const apiKey = '82406ca340409d44';
-        const apiUrl = `https://api-dark-shan-yt.koyeb.app/download/ytdl?url=${encodeURIComponent(videoUrl)}&format=720&apikey=${apiKey}`;
+        // New API Endpoint
+        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4/download?url=${encodeURIComponent(videoUrl)}&quality=360p&apiKey=key_faa62e4037a95cda`;
         
         const res = await fetchJson(apiUrl);
         
         let downloadUrl = null;
         let videoTitle = title;
+        let videoDuration = 'N/A';
+        let videoThumbnail = thumbUrl;
         
         if (res && res.status && res.data) {
-            downloadUrl = res.data.download;
+            downloadUrl = res.data.links?.video || null;
             videoTitle = res.data.title || title;
+            videoDuration = res.data.duration || 'N/A';
+            videoThumbnail = res.data.thumbnail || thumbUrl;
         }
         
         if (!downloadUrl) {
@@ -301,7 +304,7 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
         // Generate thumbnail
         let thumbnailBuffer = null;
         try {
-            const thumbResponse = await axios.get(thumbUrl, { 
+            const thumbResponse = await axios.get(videoThumbnail, { 
                 responseType: 'arraybuffer',
                 timeout: 15000 
             });
@@ -323,14 +326,17 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
         // Download video as buffer
         const videoResponse = await axios.get(downloadUrl, {
             responseType: 'arraybuffer',
-            timeout: 120000
+            timeout: 120000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
         });
         const videoBuffer = Buffer.from(videoResponse.data);
 
         // Send as video message (buffer)
         await bot.sendMessage(from, {
             video: videoBuffer,
-            caption: `🎬 *${videoTitle}*\n📺 Quality: 720p HD\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
+            caption: `🎬 *${videoTitle}*\n📺 Quality: 360p\n⏱️ Duration: ${videoDuration}\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
             thumbnail: thumbnailBuffer,
             mimetype: 'video/mp4'
         }, { quoted: mek });
@@ -348,17 +354,21 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
 
-        const apiKey = '82406ca340409d44';
-        const apiUrl = `https://api-dark-shan-yt.koyeb.app/download/ytdl?url=${encodeURIComponent(videoUrl)}&format=720&apikey=${apiKey}`;
+        // New API Endpoint
+        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4/download?url=${encodeURIComponent(videoUrl)}&quality=360p&apiKey=key_faa62e4037a95cda`;
         
         const res = await fetchJson(apiUrl);
         
         let downloadUrl = null;
         let videoTitle = title;
+        let videoDuration = 'N/A';
+        let videoThumbnail = thumbUrl;
         
         if (res && res.status && res.data) {
-            downloadUrl = res.data.download;
+            downloadUrl = res.data.links?.video || null;
             videoTitle = res.data.title || title;
+            videoDuration = res.data.duration || 'N/A';
+            videoThumbnail = res.data.thumbnail || thumbUrl;
         }
         
         if (!downloadUrl) {
@@ -368,7 +378,7 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
         // Thumbnail
         let thumbnailBuffer = null;
         try {
-            const thumbResponse = await axios.get(thumbUrl, { 
+            const thumbResponse = await axios.get(videoThumbnail, { 
                 responseType: 'arraybuffer',
                 timeout: 15000 
             });
@@ -390,7 +400,10 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
         // Download video as buffer
         const videoResponse = await axios.get(downloadUrl, {
             responseType: 'arraybuffer',
-            timeout: 120000
+            timeout: 120000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
         });
         const videoBuffer = Buffer.from(videoResponse.data);
 
@@ -399,7 +412,7 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
         await bot.sendMessage(from, {
             document: videoBuffer,
             jpegThumbnail: thumbnailBuffer,
-            caption: `📄 *${videoTitle}*\n📺 Quality: 720p HD\n📁 Type: Document\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
+            caption: `📄 *${videoTitle}*\n📺 Quality: 360p\n⏱️ Duration: ${videoDuration}\n📁 Type: Document\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
             mimetype: 'video/mp4',
             fileName: fileName
         }, { quoted: mek });
@@ -417,17 +430,19 @@ async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
 
-        const apiKey = '82406ca340409d44';
-        const apiUrl = `https://api-dark-shan-yt.koyeb.app/download/ytdl?url=${encodeURIComponent(videoUrl)}&format=720&apikey=${apiKey}`;
+        // New API Endpoint
+        const apiUrl = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4/download?url=${encodeURIComponent(videoUrl)}&quality=360p&apiKey=key_faa62e4037a95cda`;
         
         const res = await fetchJson(apiUrl);
         
         let downloadUrl = null;
         let videoTitle = title;
+        let videoDuration = 'N/A';
         
         if (res && res.status && res.data) {
-            downloadUrl = res.data.download;
+            downloadUrl = res.data.links?.video || null;
             videoTitle = res.data.title || title;
+            videoDuration = res.data.duration || 'N/A';
         }
         
         if (!downloadUrl) {
@@ -437,7 +452,10 @@ async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
         // Download video as buffer
         const videoResponse = await axios.get(downloadUrl, { 
             responseType: 'arraybuffer',
-            timeout: 120000 
+            timeout: 120000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
         });
         const videoBuffer = Buffer.from(videoResponse.data);
 
@@ -447,11 +465,11 @@ async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
         await bot.sendMessage(from, {
             videoNote: videoBuffer,
             ptt: false,
-            seconds: 60
+            seconds: Math.min(parseInt(videoDuration) || 60, 60)
         }, { quoted: mek });
 
         await bot.sendMessage(from, { 
-            text: `🎥 *${videoTitle}*\n📺 Quality: 720p HD\n📝 Type: Video Note\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*` 
+            text: `🎥 *${videoTitle}*\n📺 Quality: 360p\n⏱️ Duration: ${videoDuration}\n📝 Type: Video Note\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*` 
         }, { quoted: mek });
 
         await bot.sendMessage(from, { react: { text: '✅', key: mek.key } });
