@@ -76,9 +76,9 @@ cmd({
         await zanta.groupParticipantsUpdate(from, [user], "remove");
 
         let desc = `
-╭━─━─━─━─━─━─╮
-┃    *MEMBER REMOVED*
-╰━─━─━─━─━─━─╯
+╭━─━──━──━─━─━─━─━─╮
+┃ *MEMBER REMOVED* |
+╰━─━─━─━──━──━─━─━─╯
 
 👤 *User:* @${user.split('@')[0]}
 ✅ *Action:* Successfully Kicked
@@ -115,9 +115,9 @@ cmd({
         await zanta.groupParticipantsUpdate(from, [user], "promote");
 
         let desc = `
-╭━─━─━─━─━─╮
-┃    *ADMIN PROMOTE*
-╰━─━─━─━─━─╯
+╭━─━─━─━──━──━──━─╮
+┃ *ADMIN PROMOTE* |
+╰━─━─━─━──━──━──━─╯
 
 👤 *User:* @${user.split('@')[0]}
 ⭐ *Status:* Now Admin
@@ -154,9 +154,9 @@ cmd({
         await zanta.groupParticipantsUpdate(from, [user], "demote");
 
         let desc = `
-╭━─━─━─━─━─╮
-┃    *ADMIN DEMOTE*
-╰━─━─━─━─━─╯
+╭━─━─━──━──━─━─━─╮
+┃ *ADMIN DEMOTE* |
+╰━─━─━─━──━──━─━─╯
 
 👤 *User:* @${user.split('@')[0]}
 📉 *Status:* Admin Removed
@@ -208,9 +208,9 @@ cmd({
         let userList = usersToAdd.map(u => `@${u.split('@')[0]}`).join("\n");
 
         let desc = `
-╭━─━─━─━─━─╮
-┃    *MEMBERS ADDED*
-╰━─━─━─━─━─╯
+╭━─━─━──━──━──━─━─╮
+┃ *MEMBERS ADDED* |
+╰━─━─━─━──━──━──━─╯
 
 ✅ *Status:* Successfully Added
 👥 *Added Users:* ${userList}
@@ -239,7 +239,7 @@ cmd({
       let ppUrl;
       try { ppUrl = await zanta.profilePictureUrl(from, 'image'); } catch { ppUrl = "https://i.ibb.co/vYm6p6n/whatsapp-group-icon.png"; }
 
-      let desc = `\n╭━─━─━─━─━╮\n┃    *GROUP INVITE*\n╰━─━─━─━─━╯\n\n🎬 *Group:* ${groupMetadata.subject}\n🔗 *Link:* https://chat.whatsapp.com/${code}\n\n_Join using the link above!_`;
+      let desc = `\n╭━─━──━──━─━─━─━╮\n┃    *GROUP INVITE*\n╰━─━─━─━──━──━─━╯\n\n🎬 *Group:* ${groupMetadata.subject}\n🔗 *Link:* https://chat.whatsapp.com/${code}\n\n_Join using the link above!_`;
       await zanta.sendMessage(from, { image: { url: ppUrl }, caption: desc }, { quoted: mek });
   } catch (e) { reply("❌ Error: " + e.message); }
 });
@@ -252,7 +252,7 @@ cmd({
     const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
     if (perm === "not_admin") return reply("❌ *Admin Only!*");
 
-    let txt = `\n╭━─━─━─━─━─━─━╮\n┃    *📢 TAG ALL MEMBERS*\n╰━─━─━─━─━─━─━╯\n\n📢 *Message:* ${q ? q : 'No message'}\n\n`;
+    let txt = `\n╭━─━─━─━─━─━──━──━─━╮\n┃    *📢 TAG ALL MEMBERS*\n╰━─━─━──━──━─━─━─━─━╯\n\n📢 *Message:* ${q ? q : 'No message'}\n\n`;
     for (let mem of participants) { txt += `🔘 @${mem.id.split('@')[0]}\n`; }
     await zanta.sendMessage(from, { text: txt, mentions: participants.map(p => p.id) }, { quoted: mek });
 });
