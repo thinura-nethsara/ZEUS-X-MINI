@@ -39,9 +39,7 @@ function getAliveMessage(botInfo = {}) {
 
     // 🆕 නව Design
     return `
-${botInfo.botName || 'ZEUS X MD'}
-
-╭━〔 ZEUS-X-MINI 〕
+╭━〔 ${botInfo.botName || 'ZEUS X MD'} 〕
 |   *${greeting}*
 |   *DATE*: ${date}
 |   *TIME* : ${time}
