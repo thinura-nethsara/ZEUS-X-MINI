@@ -13,7 +13,7 @@ cmd(
     async (zanta, mek, m, { from, reply, args, prefix }) => {
         try {
             if (!m.quoted) {
-                return reply(`❌ Status message එකකට reply කර *${prefix}get* ලෙස යවන්න.`);
+                return reply(`❌ Status message එකකට reply කර *${prefix}save* ලෙස යවන්න.`);
             }
 
             const quotedObject = m.quoted;
