@@ -264,7 +264,7 @@ cmd({
 
 // ============= HANDLER FUNCTIONS =============
 
-// Video Download Handler
+// ✅ FIXED: Video Download Handler (sends as buffer)
 async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
@@ -286,24 +286,41 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
             return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
         }
 
-        // Generate thumbnail using axios
+        // Generate thumbnail
         let thumbnailBuffer = null;
         try {
             const thumbResponse = await axios.get(thumbUrl, { 
                 responseType: 'arraybuffer',
                 timeout: 15000 
             });
-            thumbnailBuffer = Buffer.from(thumbResponse.data);
+            const rawBuffer = Buffer.from(thumbResponse.data);
+            try {
+                thumbnailBuffer = await sharp(rawBuffer)
+                    .resize(200, 200, { fit: 'cover' })
+                    .jpeg({ quality: 80 })
+                    .toBuffer();
+            } catch (sharpError) {
+                thumbnailBuffer = rawBuffer;
+            }
         } catch(e) {
             console.log('Thumbnail fetch failed:', e.message);
         }
 
-        await bot.sendMessage(from, { react: { text: '⬆️', key: mek.key } });
+        await bot.sendMessage(from, { react: { text: '⬇️', key: mek.key } });
 
+        // 🔥 FIX: Download the video as a buffer
+        const videoResponse = await axios.get(downloadUrl, {
+            responseType: 'arraybuffer',
+            timeout: 120000 // 2 minutes
+        });
+        const videoBuffer = Buffer.from(videoResponse.data);
+
+        // Send as video message with buffer
         await bot.sendMessage(from, {
-            video: { url: downloadUrl },
+            video: videoBuffer,
             caption: `🎬 *${videoTitle}*\n📺 Quality: 720p HD\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
-            thumbnail: thumbnailBuffer
+            thumbnail: thumbnailBuffer,
+            mimetype: 'video/mp4'
         }, { quoted: mek });
 
         await bot.sendMessage(from, { react: { text: '✅', key: mek.key } });
@@ -314,7 +331,7 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
     }
 }
 
-// Document Download Handler
+// ✅ FIXED: Document Download Handler (also uses buffer)
 async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
@@ -336,7 +353,7 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
             return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
         }
 
-        // Generate thumbnail using axios
+        // Thumbnail
         let thumbnailBuffer = null;
         try {
             const thumbResponse = await axios.get(thumbUrl, { 
@@ -344,7 +361,6 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
                 timeout: 15000 
             });
             const rawBuffer = Buffer.from(thumbResponse.data);
-            // Resize thumbnail if sharp is available
             try {
                 thumbnailBuffer = await sharp(rawBuffer)
                     .resize(200, 200, { fit: 'cover' })
@@ -357,12 +373,19 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
             console.log('Thumbnail fetch failed:', e.message);
         }
 
-        await bot.sendMessage(from, { react: { text: '⬆️', key: mek.key } });
+        await bot.sendMessage(from, { react: { text: '⬇️', key: mek.key } });
+
+        // 🔥 FIX: Download video as buffer
+        const videoResponse = await axios.get(downloadUrl, {
+            responseType: 'arraybuffer',
+            timeout: 120000
+        });
+        const videoBuffer = Buffer.from(videoResponse.data);
 
         const fileName = `${videoTitle.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100)}.mp4`;
 
         await bot.sendMessage(from, {
-            document: { url: downloadUrl },
+            document: videoBuffer,
             jpegThumbnail: thumbnailBuffer,
             caption: `📄 *${videoTitle}*\n📺 Quality: 720p HD\n📁 Type: Document\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
             mimetype: 'video/mp4',
@@ -377,7 +400,7 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
     }
 }
 
-// Video Note Download Handler
+// Video Note Handler (already uses buffer – no change needed)
 async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
@@ -399,7 +422,7 @@ async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
             return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
         }
 
-        // Download video using axios
+        // Download video as buffer
         const videoResponse = await axios.get(downloadUrl, { 
             responseType: 'arraybuffer',
             timeout: 120000 
