@@ -2,10 +2,9 @@ const { cmd } = require("../command");
 const axios = require("axios");
 const yts = require("yt-search");
 const config = require("../config");
-const fs = require('fs');
 const sharp = require('sharp');
 
-// Helper Functions - Using axios instead of fetch
+// Helper Functions
 const fetchJson = async (url) => {
     try {
         const response = await axios.get(url, { timeout: 30000 });
@@ -203,7 +202,7 @@ cmd({
     }
 });
 
-// ============= VIDEO TYPE =============
+// ============= VIDEO TYPE (button) =============
 cmd({
     pattern: "vd_work",
     react: "⬇️",
@@ -212,7 +211,12 @@ cmd({
 }, async (bot, mek, m, { from, q, reply }) => {
     try {
         if (!q) return await reply('❌ Need a YouTube URL!');
-        const parts = q.split("&");
+        // Remove the command prefix if present (button sends it)
+        let data = q;
+        if (data.startsWith('vd_work ')) {
+            data = data.slice('vd_work '.length);
+        }
+        const parts = data.split("&");
         const videoUrl = parts[0];
         const thumbUrl = parts[1];
         const title = decodeURIComponent(parts[2] || 'Video');
@@ -223,7 +227,7 @@ cmd({
     }
 });
 
-// ============= DOCUMENT TYPE =============
+// ============= DOCUMENT TYPE (button) =============
 cmd({
     pattern: "doc_work",
     react: "⬇️",
@@ -232,7 +236,11 @@ cmd({
 }, async (bot, mek, m, { from, q, reply }) => {
     try {
         if (!q) return await reply('❌ Need a YouTube URL!');
-        const parts = q.split("&");
+        let data = q;
+        if (data.startsWith('doc_work ')) {
+            data = data.slice('doc_work '.length);
+        }
+        const parts = data.split("&");
         const videoUrl = parts[0];
         const thumbUrl = parts[1];
         const title = decodeURIComponent(parts[2] || 'Video');
@@ -243,7 +251,7 @@ cmd({
     }
 });
 
-// ============= VIDEO NOTE TYPE =============
+// ============= VIDEO NOTE TYPE (button) =============
 cmd({
     pattern: "vn_work",
     react: "⬇️",
@@ -252,7 +260,11 @@ cmd({
 }, async (bot, mek, m, { from, q, reply }) => {
     try {
         if (!q) return await reply('❌ Need a YouTube URL!');
-        const parts = q.split("&");
+        let data = q;
+        if (data.startsWith('vn_work ')) {
+            data = data.slice('vn_work '.length);
+        }
+        const parts = data.split("&");
         const videoUrl = parts[0];
         const title = decodeURIComponent(parts[2] || 'Video');
         await handleVideoNoteDownload(bot, from, videoUrl, title, mek);
@@ -264,7 +276,7 @@ cmd({
 
 // ============= HANDLER FUNCTIONS =============
 
-// ✅ FIXED: Video Download Handler (sends as buffer)
+// Video Download (sends as playable video)
 async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
@@ -308,14 +320,14 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
 
         await bot.sendMessage(from, { react: { text: '⬇️', key: mek.key } });
 
-        // 🔥 FIX: Download the video as a buffer
+        // Download video as buffer
         const videoResponse = await axios.get(downloadUrl, {
             responseType: 'arraybuffer',
-            timeout: 120000 // 2 minutes
+            timeout: 120000
         });
         const videoBuffer = Buffer.from(videoResponse.data);
 
-        // Send as video message with buffer
+        // Send as video message (buffer)
         await bot.sendMessage(from, {
             video: videoBuffer,
             caption: `🎬 *${videoTitle}*\n📺 Quality: 720p HD\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
@@ -331,7 +343,7 @@ async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
     }
 }
 
-// ✅ FIXED: Document Download Handler (also uses buffer)
+// Document Download (sends as document)
 async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
@@ -375,7 +387,7 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
 
         await bot.sendMessage(from, { react: { text: '⬇️', key: mek.key } });
 
-        // 🔥 FIX: Download video as buffer
+        // Download video as buffer
         const videoResponse = await axios.get(downloadUrl, {
             responseType: 'arraybuffer',
             timeout: 120000
@@ -400,7 +412,7 @@ async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek)
     }
 }
 
-// Video Note Handler (already uses buffer – no change needed)
+// Video Note Download
 async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
     try {
         await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
