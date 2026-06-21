@@ -39,20 +39,28 @@ function getAliveMessage(botInfo = {}) {
 
     // 🆕 නව Design
     return `
->================================<
-  >  ${botInfo.botName || 'ZEUS XMD'}  <
-  >  SYSTEM : ONLINE  <
->================================<
-  > *${greeting}*
-  > *DATE*: ${date}
-  > *TIME* : ${time}
-  > *UPTIME* : ${uptimeStr}
-  > *PREFIX* : ${prefix}
->================================<
-  > “Ready to assist”
-  > POWERED BY ZEUS INC
->================================<
-`;
+${botInfo.botName || 'ZEUS X MD'}
+:･°🌸⋆.ೃ🌷ೃ࿔:･°🌸⋆.ೃ࿔🌷࿔:･
+┆ ┆ ┆ ┆⋆ .ೃ࿔*:･°🌼
+┆ ┆ ┆જ ✾ 💮  
+┆ ♡ • ➵ ✩  ° 💫
+┆彡
+🌸
+
+╭━〔 ZEUS-X-MINI 〕
+|   *${greeting}*
+|   *DATE*: ${date}
+|   *TIME* : ${time}
+|   *UPTIME* : ${uptimeStr}
+|   *PREFIX* : ${prefix}
+╰━━━━━━━━━━━━━━━━━━━✦
+
+╭━〔 HELP ME 〕
+| Use This Command
+| ${prefix}menu 
+╰━━━━━━━━━━━━━━━━━━━✦
+
+> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
 }
 // ============================================
 
