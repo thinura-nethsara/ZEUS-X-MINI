@@ -3,174 +3,148 @@ const axios = require("axios");
 const yts = require("yt-search");
 const config = require("../config");
 const fs = require('fs');
+const fetch = require('node-fetch');
+
+// Helper Functions
+const fetchJson = async (url) => {
+    const response = await fetch(url);
+    return response.json();
+};
+
+const resizeImage = async (buffer, width, height) => {
+    const sharp = require('sharp');
+    return await sharp(buffer)
+        .resize(width, height, { fit: 'cover' })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+};
 
 cmd({
     pattern: "video",
-    alias: ["ytv", "mp4", "vdo"],
-    react: "🎬",
-    desc: "Download YouTube MP4 (supports search & direct URL)",
+    alias: ["ytv", "mp4", "vdo", "ytdownload"],
+    react: "📽️",
+    desc: "Download YouTube videos (search or URL)",
     category: "download",
     filename: __filename,
 }, async (bot, mek, m, { from, q, reply, prefix, userSettings }) => {
     try {
-        if (!q) return reply("🎬 *ZEUS X VIDEO PLAYER*\n\n*Usage:*\n`.video song name`\n`.video https://youtube.com/...`");
+        if (!q) {
+            return reply(`📽️ *ZEUS X VIDEO DOWNLOADER* 📽️\n\n` +
+                        `*Usage:*\n` +
+                        `• ${prefix}video <song name>\n` +
+                        `• ${prefix}video <YouTube URL>\n\n` +
+                        `*Examples:*\n` +
+                        `${prefix}video Despacito\n` +
+                        `${prefix}video https://youtu.be/xxxxx`);
+        }
 
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const isButtonsOn = settings.buttons === 'true';
         const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
-        let video;
-        let isDirectUrl = false;
+        await bot.sendMessage(from, { react: { text: '🔍', key: mek.key } });
 
-        // Check if input is a YouTube URL
+        // Check if input is YouTube URL
         const youtubeUrlPattern = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/;
         const urlMatch = q.match(youtubeUrlPattern);
+        
+        let video;
+        let isUrl = false;
 
         if (urlMatch) {
-            // Direct URL mode
-            isDirectUrl = true;
+            isUrl = true;
             const videoId = urlMatch[1];
             const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
             
-            // Get video info using yt-search
-            const searchResults = await yts({ videoId: videoId });
-            if (searchResults && searchResults.videoId) {
-                video = {
-                    title: searchResults.title || 'YouTube Video',
-                    author: { name: searchResults.author?.name || 'Unknown' },
-                    timestamp: searchResults.duration?.timestamp || 'N/A',
-                    url: videoUrl,
-                    thumbnail: searchResults.thumbnail || 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png'
-                };
-            } else {
-                // Fallback: use yts search with URL
+            try {
+                const searchResults = await yts({ videoId: videoId });
+                if (searchResults && searchResults.videoId) {
+                    video = {
+                        title: searchResults.title || 'YouTube Video',
+                        author: { name: searchResults.author?.name || 'Unknown' },
+                        views: searchResults.views || 'N/A',
+                        duration: searchResults.duration?.timestamp || 'N/A',
+                        url: videoUrl,
+                        thumbnail: searchResults.thumbnail || 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png'
+                    };
+                } else {
+                    const fallbackResults = await yts(q);
+                    if (fallbackResults && fallbackResults.videos.length > 0) {
+                        video = fallbackResults.videos[0];
+                    } else {
+                        return reply('❌ Could not fetch video details from URL.');
+                    }
+                }
+            } catch (e) {
                 const fallbackResults = await yts(q);
                 if (fallbackResults && fallbackResults.videos.length > 0) {
                     video = fallbackResults.videos[0];
                 } else {
-                    return reply("❌ Could not fetch video details from URL.");
+                    return reply('❌ Could not fetch video details from URL.');
                 }
             }
         } else {
             // Search mode
             const search = await yts(q);
             if (!search || !search.videos || !search.videos.length) {
-                return reply("❌ No results found on YouTube.");
+                return reply('❌ No results found on YouTube.');
             }
             video = search.videos[0];
         }
 
-        let msg = `🎬 *ZEUS X VIDEO PLAYER* 🎬\n\n` +
-                  `📝 *Title:* ${video.title}\n` +
-                  `👤 *Uploader:* ${video.author.name}\n` +
-                  `⏱️ *Duration:* ${video.timestamp}\n` +
-                  `🔗 *Link:* ${video.url}\n\n`;
+        const caption = `🎬 *${botName} VIDEO DOWNLOADER* 🎬\n` +
+                       `╭━━━━━━━━━━━━━━━━━⬣\n` +
+                       `┃📹 *Title:* ${video.title}\n` +
+                       `┃👤 *Uploader:* ${video.author.name}\n` +
+                       `┃👁️ *Views:* ${video.views || 'N/A'}\n` +
+                       `┃⏱️ *Duration:* ${video.duration || 'N/A'}\n` +
+                       `┃🔗 *URL:* ${video.url}\n` +
+                       `╰━━━━━━━━━━━━━━━━━⬣\n\n` +
+                       `*Select download type:*`;
 
         // --- BUTTON MODE ---
         if (isButtonsOn) {
-            msg += `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
+            const buttons = [
+                {
+                    buttonId: `vd_work ${video.url}&${video.thumbnail}&${encodeURIComponent(video.title)}`,
+                    buttonText: { displayText: '📹 Video (MP4)' },
+                    type: 1
+                },
+                {
+                    buttonId: `doc_work ${video.url}&${video.thumbnail}&${encodeURIComponent(video.title)}`,
+                    buttonText: { displayText: '📁 Document' },
+                    type: 1
+                },
+                {
+                    buttonId: `vn_work ${video.url}&${video.thumbnail}&${encodeURIComponent(video.title)}`,
+                    buttonText: { displayText: '🎥 Video Note' },
+                    type: 1
+                }
+            ];
 
-            const sentMsg = await bot.sendMessage(from, {
+            await bot.sendMessage(from, { react: { text: '✅', key: mek.key } });
+
+            await bot.sendMessage(from, {
                 image: { url: video.thumbnail },
-                caption: msg,
-                buttons: [
-                    { buttonId: "video_360p", buttonText: { displayText: "🎬 360p Video" }, type: 1 },
-                    { buttonId: "video_720p", buttonText: { displayText: "📹 720p Video" }, type: 1 }
-                ],
+                caption: caption,
+                buttons: buttons,
                 headerType: 4
             }, { quoted: mek });
-
-            // Button Listener
-            const buttonListener = async (update) => {
-                try {
-                    const msgUpdate = update.messages[0];
-                    if (!msgUpdate || !msgUpdate.message) return;
-
-                    let selectedButton = null;
-                    
-                    if (msgUpdate.message.buttonsResponseMessage) {
-                        selectedButton = msgUpdate.message.buttonsResponseMessage.selectedButtonId;
-                    } else if (msgUpdate.message.templateButtonReplyMessage) {
-                        selectedButton = msgUpdate.message.templateButtonReplyMessage.selectedId;
-                    } else if (msgUpdate.message.interactiveResponseMessage) {
-                        selectedButton = msgUpdate.message.interactiveResponseMessage.nativeFlowResponseMessage?.buttonsMessage?.selectedButtonId;
-                    }
-
-                    const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo || 
-                                      msgUpdate.message.buttonsResponseMessage?.contextInfo ||
-                                      msgUpdate.message.templateButtonReplyMessage?.contextInfo;
-
-                    const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
-
-                    if (isReplyToBot && (selectedButton === 'video_360p' || selectedButton === 'video_720p')) {
-                        bot.ev.off('messages.upsert', buttonListener);
-
-                        await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
-
-                        try {
-                            const quality = selectedButton === 'video_360p' ? '360p' : '720p';
-                            
-                            const downloadResult = await getVideoLink(video.url, quality);
-                            
-                            if (!downloadResult) {
-                                await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                                return reply("❌ Download link not found for " + quality);
-                            }
-
-                            // Send video with thumbnail as preview
-                            let thumbnailBuffer = null;
-                            try {
-                                const thumbResponse = await axios.get(video.thumbnail, { responseType: 'arraybuffer', timeout: 10000 });
-                                thumbnailBuffer = Buffer.from(thumbResponse.data);
-                            } catch (e) {
-                                console.log('Thumbnail fetch failed');
-                            }
-
-                            if (downloadResult.downloadUrl) {
-                                await bot.sendMessage(from, { 
-                                    video: { url: downloadResult.downloadUrl },
-                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
-                                    mimetype: "video/mp4",
-                                    thumbnail: thumbnailBuffer
-                                }, { quoted: msgUpdate });
-                            } else if (downloadResult.filePath) {
-                                await bot.sendMessage(from, { 
-                                    video: { url: downloadResult.filePath },
-                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
-                                    mimetype: "video/mp4",
-                                    thumbnail: thumbnailBuffer
-                                }, { quoted: msgUpdate });
-                            }
-
-                            await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
-                        } catch (err) {
-                            console.error("Download Error:", err);
-                            await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                            reply("❌ Error downloading video. Please try another quality.");
-                        }
-                    }
-                } catch (err) {
-                    console.error("Listener Error:", err);
-                }
-            };
-
-            bot.ev.on('messages.upsert', buttonListener);
-            setTimeout(() => {
-                bot.ev.off('messages.upsert', buttonListener);
-            }, 300000);
 
             return;
         }
 
-        // --- TEXT MODE (Default) ---
-        msg += `*Reply with a number:* \n\n` +
-               `1️⃣ *360p Video* (MP4)\n` +
-               `2️⃣ *720p Video* (MP4)\n\n` +
-               `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `;
+        // --- TEXT MODE ---
+        const textMenu = caption + `\n\n` +
+                        `*Reply with number:*\n` +
+                        `1️⃣ Video (MP4)\n` +
+                        `2️⃣ Document\n` +
+                        `3️⃣ Video Note\n\n` +
+                        `> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_`;
 
-        const sentMsg = await bot.sendMessage(from, { 
-            image: { url: video.thumbnail }, 
-            caption: msg 
+        const sentMsg = await bot.sendMessage(from, {
+            image: { url: video.thumbnail },
+            caption: textMenu
         }, { quoted: mek });
 
         // Text Reply Listener
@@ -185,53 +159,27 @@ cmd({
                 const contextInfo = msgUpdate.message.extendedTextMessage?.contextInfo;
                 const isReplyToBot = contextInfo?.stanzaId === sentMsg.key.id;
 
-                if (isReplyToBot && (body === '1' || body === '2')) {
+                if (isReplyToBot && (body === '1' || body === '2' || body === '3')) {
                     bot.ev.off('messages.upsert', listener);
 
                     await bot.sendMessage(from, { react: { text: '⏳', key: msgUpdate.key } });
 
                     try {
-                        const quality = body === '1' ? '360p' : '720p';
-                        const downloadResult = await getVideoLink(video.url, quality);
-                        
-                        if (!downloadResult) {
-                            await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                            return reply("❌ Download link not found for " + quality);
+                        if (body === '1') {
+                            await handleVideoDownload(bot, from, video.url, video.thumbnail, video.title, msgUpdate);
+                        } else if (body === '2') {
+                            await handleDocumentDownload(bot, from, video.url, video.thumbnail, video.title, msgUpdate);
+                        } else if (body === '3') {
+                            await handleVideoNoteDownload(bot, from, video.url, video.title, msgUpdate);
                         }
-
-                        let thumbnailBuffer = null;
-                        try {
-                            const thumbResponse = await axios.get(video.thumbnail, { responseType: 'arraybuffer', timeout: 10000 });
-                            thumbnailBuffer = Buffer.from(thumbResponse.data);
-                        } catch (e) {
-                            console.log('Thumbnail fetch failed');
-                        }
-
-                        if (downloadResult.downloadUrl) {
-                            await bot.sendMessage(from, { 
-                                video: { url: downloadResult.downloadUrl },
-                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
-                                mimetype: "video/mp4",
-                                thumbnail: thumbnailBuffer
-                            }, { quoted: msgUpdate });
-                        } else if (downloadResult.filePath) {
-                            await bot.sendMessage(from, { 
-                                video: { url: downloadResult.filePath },
-                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
-                                mimetype: "video/mp4",
-                                thumbnail: thumbnailBuffer
-                            }, { quoted: msgUpdate });
-                        }
-
-                        await bot.sendMessage(from, { react: { text: '✅', key: msgUpdate.key } });
                     } catch (err) {
-                        console.error("Download Error:", err);
+                        console.error('Download Error:', err);
                         await bot.sendMessage(from, { react: { text: '❌', key: msgUpdate.key } });
-                        reply("❌ Error downloading video. Please try another quality.");
+                        reply('❌ Error downloading. Please try again.');
                     }
                 }
             } catch (err) {
-                console.error("Listener Error:", err);
+                console.error('Listener Error:', err);
             }
         };
 
@@ -241,67 +189,214 @@ cmd({
         }, 300000);
 
     } catch (e) {
-        console.log("VIDEO ERROR:", e);
-        reply("❌ *Error:* " + e.message);
+        console.error('VIDEO ERROR:', e);
+        reply('❌ *Error:* ' + e.message);
     }
 });
 
-// --- Video Download Function with Multiple Methods ---
-async function getVideoLink(videoUrl, quality = '360p') {
+// ============= VIDEO TYPE =============
+cmd({
+    pattern: "vd_work",
+    react: "⬇️",
+    dontAddCommandList: true,
+    filename: __filename
+}, async (bot, mek, m, { from, q, reply }) => {
     try {
-        // Method 1: Ominisave API
-        const apiUrl = `https://www.ominisave.com/api/ytmp4_v2?url=${encodeURIComponent(videoUrl)}&quality=${quality}`;
-        const response = await axios.get(apiUrl, { timeout: 30000 });
-        
-        if (response.data?.status && response.data.result?.downloadUrl) {
-            return { 
-                downloadUrl: response.data.result.downloadUrl,
-                method: 'ominisave'
-            };
-        }
-
-        // Method 2: Mr Thinuzz API (Video)
-        const backupUrl1 = `https://mr-thinuzz-api-build.vercel.app/api/ytmp4/download?url=${encodeURIComponent(videoUrl)}&apiKey=key_faa62e4037a95cda`;
-        const backup1 = await axios.get(backupUrl1, { timeout: 30000 });
-        if (backup1.data?.status && backup1.data.data?.links?.video) {
-            return { 
-                downloadUrl: backup1.data.data.links.video,
-                method: 'thinuzz'
-            };
-        }
-
-        // Method 3: GiftedTech API
-        const backupUrl2 = `https://api.giftedtech.my.id/api/download/dlmp4?url=${encodeURIComponent(videoUrl)}&apikey=gifted`;
-        const backup2 = await axios.get(backupUrl2, { timeout: 30000 });
-        if (backup2.data?.result?.download_url) {
-            return { 
-                downloadUrl: backup2.data.result.download_url,
-                method: 'gifted'
-            };
-        }
-
-        // Method 4: Direct Download with ytdl-core (if available)
-        try {
-            const ytdl = require('ytdl-core');
-            const videoInfo = await ytdl.getInfo(videoUrl);
-            const format = videoInfo.formats.find(f => 
-                f.qualityLabel === quality && f.container === 'mp4'
-            );
-            if (format) {
-                return { 
-                    downloadUrl: format.url,
-                    method: 'ytdl-core'
-                };
-            }
-        } catch (ytdlError) {
-            console.log('ytdl-core failed:', ytdlError.message);
-        }
-
-        return null;
+        if (!q) return await reply('❌ Need a YouTube URL!');
+        const parts = q.split("&");
+        const videoUrl = parts[0];
+        const thumbUrl = parts[1];
+        const title = decodeURIComponent(parts[2] || 'Video');
+        await handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek);
     } catch (e) {
-        console.error('Video link fetch error:', e.message);
-        return null;
+        console.error(e);
+        await reply('❌ Error downloading video!');
+    }
+});
+
+// ============= DOCUMENT TYPE =============
+cmd({
+    pattern: "doc_work",
+    react: "⬇️",
+    dontAddCommandList: true,
+    filename: __filename
+}, async (bot, mek, m, { from, q, reply }) => {
+    try {
+        if (!q) return await reply('❌ Need a YouTube URL!');
+        const parts = q.split("&");
+        const videoUrl = parts[0];
+        const thumbUrl = parts[1];
+        const title = decodeURIComponent(parts[2] || 'Video');
+        await handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek);
+    } catch (e) {
+        console.error(e);
+        await reply('❌ Error downloading document!');
+    }
+});
+
+// ============= VIDEO NOTE TYPE =============
+cmd({
+    pattern: "vn_work",
+    react: "⬇️",
+    dontAddCommandList: true,
+    filename: __filename
+}, async (bot, mek, m, { from, q, reply }) => {
+    try {
+        if (!q) return await reply('❌ Need a YouTube URL!');
+        const parts = q.split("&");
+        const videoUrl = parts[0];
+        const title = decodeURIComponent(parts[2] || 'Video');
+        await handleVideoNoteDownload(bot, from, videoUrl, title, mek);
+    } catch (e) {
+        console.error(e);
+        await reply('❌ Error creating video note!');
+    }
+});
+
+// ============= HANDLER FUNCTIONS =============
+
+// Video Download Handler
+async function handleVideoDownload(bot, from, videoUrl, thumbUrl, title, mek) {
+    try {
+        await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+
+        const apiKey = '82406ca340409d44';
+        const apiUrl = `https://api-dark-shan-yt.koyeb.app/download/ytdl?url=${encodeURIComponent(videoUrl)}&format=720&apikey=${apiKey}`;
+        
+        const res = await fetchJson(apiUrl);
+        
+        let downloadUrl = null;
+        let videoTitle = title;
+        
+        if (res && res.status && res.data) {
+            downloadUrl = res.data.download;
+            videoTitle = res.data.title || title;
+        }
+        
+        if (!downloadUrl) {
+            return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
+        }
+
+        // Generate thumbnail
+        let thumbnailBuffer = null;
+        try {
+            const thumbRes = await fetch(thumbUrl);
+            const thumbArrayBuffer = await thumbRes.arrayBuffer();
+            thumbnailBuffer = Buffer.from(thumbArrayBuffer);
+        } catch(e) {}
+
+        await bot.sendMessage(from, { react: { text: '⬆️', key: mek.key } });
+
+        await bot.sendMessage(from, {
+            video: { url: downloadUrl },
+            caption: `🎬 *${videoTitle}*\n📺 Quality: 720p HD\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
+            thumbnail: thumbnailBuffer
+        }, { quoted: mek });
+
+        await bot.sendMessage(from, { react: { text: '✅', key: mek.key } });
+
+    } catch (e) {
+        console.error('Video download error:', e);
+        await bot.sendMessage(from, { text: '❌ Error downloading video! Please try again later.' });
     }
 }
 
-module.exports = { getVideoLink };
+// Document Download Handler
+async function handleDocumentDownload(bot, from, videoUrl, thumbUrl, title, mek) {
+    try {
+        await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+
+        const apiKey = '82406ca340409d44';
+        const apiUrl = `https://api-dark-shan-yt.koyeb.app/download/ytdl?url=${encodeURIComponent(videoUrl)}&format=720&apikey=${apiKey}`;
+        
+        const res = await fetchJson(apiUrl);
+        
+        let downloadUrl = null;
+        let videoTitle = title;
+        
+        if (res && res.status && res.data) {
+            downloadUrl = res.data.download;
+            videoTitle = res.data.title || title;
+        }
+        
+        if (!downloadUrl) {
+            return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
+        }
+
+        // Generate thumbnail
+        let thumbnailBuffer = null;
+        try {
+            const thumbRes = await fetch(thumbUrl);
+            const thumbArrayBuffer = await thumbRes.arrayBuffer();
+            thumbnailBuffer = Buffer.from(thumbArrayBuffer);
+        } catch(e) {}
+
+        await bot.sendMessage(from, { react: { text: '⬆️', key: mek.key } });
+
+        const fileName = `${videoTitle.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100)}.mp4`;
+
+        await bot.sendMessage(from, {
+            document: { url: downloadUrl },
+            jpegThumbnail: thumbnailBuffer,
+            caption: `📄 *${videoTitle}*\n📺 Quality: 720p HD\n📁 Type: Document\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*`,
+            mimetype: 'video/mp4',
+            fileName: fileName
+        }, { quoted: mek });
+
+        await bot.sendMessage(from, { react: { text: '✅', key: mek.key } });
+
+    } catch (e) {
+        console.error('Document download error:', e);
+        await bot.sendMessage(from, { text: '❌ Error downloading document! Please try again.' });
+    }
+}
+
+// Video Note Download Handler
+async function handleVideoNoteDownload(bot, from, videoUrl, title, mek) {
+    try {
+        await bot.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+
+        const apiKey = '82406ca340409d44';
+        const apiUrl = `https://api-dark-shan-yt.koyeb.app/download/ytdl?url=${encodeURIComponent(videoUrl)}&format=720&apikey=${apiKey}`;
+        
+        const res = await fetchJson(apiUrl);
+        
+        let downloadUrl = null;
+        let videoTitle = title;
+        
+        if (res && res.status && res.data) {
+            downloadUrl = res.data.download;
+            videoTitle = res.data.title || title;
+        }
+        
+        if (!downloadUrl) {
+            return await bot.sendMessage(from, { text: '❌ Could not get download URL! Please try again.' });
+        }
+
+        // Download video
+        const videoResponse = await fetch(downloadUrl);
+        const videoArrayBuffer = await videoResponse.arrayBuffer();
+        const videoBuffer = Buffer.from(videoArrayBuffer);
+
+        await bot.sendMessage(from, { react: { text: '🔄', key: mek.key } });
+
+        // Send as video note
+        await bot.sendMessage(from, {
+            videoNote: videoBuffer,
+            ptt: false,
+            seconds: 60
+        }, { quoted: mek });
+
+        await bot.sendMessage(from, { 
+            text: `🎥 *${videoTitle}*\n📺 Quality: 720p HD\n📝 Type: Video Note\n\n*⏤͟͟͞͞★❮ ZEUS X VIDEO ❯⏤͟͟͞͞★*` 
+        }, { quoted: mek });
+
+        await bot.sendMessage(from, { react: { text: '✅', key: mek.key } });
+
+    } catch (e) {
+        console.error('Video note error:', e);
+        await bot.sendMessage(from, { text: '❌ Error creating video note! Try another format.' });
+    }
+}
+
+module.exports = {};
