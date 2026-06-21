@@ -40,12 +40,6 @@ function getAliveMessage(botInfo = {}) {
     // 🆕 නව Design
     return `
 ${botInfo.botName || 'ZEUS X MD'}
-:･°🌸⋆.ೃ🌷ೃ࿔:･°🌸⋆.ೃ࿔🌷࿔:･
-┆ ┆ ┆ ┆⋆ .ೃ࿔*:･°🌼
-┆ ┆ ┆જ ✾ 💮  
-┆ ♡ • ➵ ✩  ° 💫
-┆彡
-🌸
 
 ╭━〔 ZEUS-X-MINI 〕
 |   *${greeting}*
@@ -57,7 +51,7 @@ ${botInfo.botName || 'ZEUS X MD'}
 
 ╭━〔 HELP ME 〕
 | Use This Command
-| ${prefix}menu 
+|  ${prefix}menu 
 ╰━━━━━━━━━━━━━━━━━━━✦
 
 > _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
