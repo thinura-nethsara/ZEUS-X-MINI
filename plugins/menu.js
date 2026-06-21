@@ -4,60 +4,8 @@ const config = require("../config");
 const axios = require('axios');
 
 const MENU_IMAGE_URL = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
-const CHANNEL_JID = "120363425542933159@newsletter";
+const CHANNEL_JID = "120363404252774256@newsletter";
 const lastMenuMessage = new Map();
-
-// ============================================
-// 🟢 ALIVE STYLE HEADER GENERATOR
-// ============================================
-function getMenuHeader(botInfo = {}) {
-    // ශ්‍රී ලාංකික වේලාව
-    const now = new Date();
-    const sriLankaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-    
-    const date = sriLankaTime.toLocaleDateString('en-US', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric' 
-    });
-    const time = sriLankaTime.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit', 
-        hour12: false 
-    });
-
-    // Dynamic Greeting
-    const hour = sriLankaTime.getHours();
-    let greeting = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ ☀️";
-    if (hour >= 12 && hour < 17) greeting = "ɢᴏᴏᴅ ᴀꜰᴛᴇʀɴᴏᴏɴ 🌤️";
-    else if (hour >= 17 && hour < 21) greeting = "ɢᴏᴏᴅ ᴇᴠᴇɴɪɴɢ 🌅";
-    else if (hour >= 21 || hour < 5) greeting = "ɢᴏᴏᴅ ɴɪɢʜᴛ 🌙";
-
-    // Uptime
-    const uptimeSec = botInfo.uptime || 0;
-    const days = Math.floor(uptimeSec / 86400);
-    const hours = Math.floor((uptimeSec % 86400) / 3600);
-    const mins = Math.floor((uptimeSec % 3600) / 60);
-    const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
-
-    const prefix = botInfo.prefix || config.DEFAULT_PREFIX || '/';
-
-    return `
-◈◈◈◈◈◈◈◈◈◈◈
-✦ ─── *${botInfo.botName || 'ZEUS XMD'}* ─── ✦
-◈◈◈◈◈◈◈◈◈◈◈
-${greeting} ✨
-\`✦  ᴘʀᴇꜰɪx   :  ${prefix}\`
-\`✦  ᴅᴀᴛᴇ     :  ${date}\`
-\`✦  ᴛɪᴍᴇ     :  ${time}\`
-\`✦  ᴜᴘᴛɪᴍᴇ  :  ${uptimeStr}\`
-\`✦  ᴍᴏᴅᴇ     :  ${botInfo.mode || 'PUBLIC'}\`
-\`✦  ᴄᴏᴍᴍᴀɴᴅꜱ :  ${botInfo.totalCmds || 0}\`
-◈◈◈◈◈◈◈◈◈◈◈
-`;
-}
-// ============================================
 
 // --- 🖼️ IMAGE PRE-LOAD LOGIC ---
 let cachedMenuImage = null;
@@ -90,7 +38,6 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
         const ownerName = settings.ownerName || config.DEFAULT_OWNER_NAME || 'Mr ThinUzz';
         const mode = (settings.workType || "Public").toUpperCase();
         const isButtonsOn = settings.buttons === 'true';
-        const uptime = process.uptime();
 
         let inputBody = m.body ? m.body.trim().toLowerCase() : "";
         const isNumber = /^\d+$/.test(inputBody);
@@ -104,7 +51,7 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
         }
 
         const groupedCommands = {};
-        const customOrder = ["main", "download", "tools", "logo", "media"];
+        const customOrder = ["main", "download", "tools", "logo", "media", "group", "owner", "ai", "misc"];
 
         commands.filter(c => c.pattern && c.pattern !== "menu").forEach(cmdData => {
             let cat = cmdData.category?.toLowerCase() || "other";
@@ -138,56 +85,90 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
             }
         };
 
-        // ============================================
-        // 🟢 CATEGORY VIEW (Alive Style)
-        // ============================================
+        // --- 📋 Category View ---
         if (selectedCategory && groupedCommands[selectedCategory]) {
             let displayTitle = selectedCategory.toUpperCase();
-            let emoji = { 
-                main: '🏠', 
-                download: '📥', 
-                tools: '🛠', 
-                logo: '🎨', 
-                media: '🖼' 
+            let emoji = {
+                main: '🏠', download: '📥', tools: '🛠',
+                logo: '🎨', media: '🖼', group: '👥',
+                owner: '👑', ai: '🧠', misc: '📌'
             }[selectedCategory.toLowerCase()] || '📌';
 
-            let commandList = `
-◈◈◈◈◈◈◈◈◈◈◈
-✦ ─── *${emoji} ${displayTitle}* ─── ✦
-◈◈◈◈◈◈◈◈◈◈◈
-\`✦  ᴄᴀᴛᴇɢᴏʀʏ  :  ${displayTitle}\`
-\`✦  ᴀᴠᴀɪʟᴀʙʟᴇ :  ${groupedCommands[selectedCategory].length}\`
-◈◈◈◈◈◈◈◈◈◈◈
-`;
+            let commandList = `╭──⦁──⦁─❤️─⦁──⦁──╮\n`;
+            commandList += `   💕 ${displayTitle} ᴄᴏᴍᴍᴀɴᴅꜱ 💕\n`;
+            commandList += `╰──⦁──⦁─⦁─⦁─⦁──⦁──╯\n\n`;
 
             groupedCommands[selectedCategory].forEach((c) => {
-                commandList += `\`✦  ${finalPrefix}${c.pattern}\`\n`;
+                commandList += `┆ ◈ ${finalPrefix}${c.pattern}\n`;
             });
 
-            commandList += `
-◈◈◈◈◈◈◈◈◈◈◈
-*“ ʀᴇᴀᴅʏ ᴛᴏ ᴀꜱꜱɪꜱᴛ ”*
-*⚡ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴇᴜꜱ ɪɴᴄ ⚡*
-`;
+            commandList += `\n╭━━━━━━━━━━━━━━━━━━━━╮\n`;
+            commandList += `┆ 📝 ᴛᴏᴛᴀʟ : ${groupedCommands[selectedCategory].length}\n`;
+            commandList += `┆ 🎯 ᴄᴀᴛᴇɢᴏʀʏ : ${displayTitle}\n`;
+            commandList += `╰━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+            commandList += `> ✦ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${botName} 💜`;
 
-            return await zanta.sendMessage(from, { 
-                text: commandList, 
-                contextInfo 
-            }, { quoted: mek });
+            return await zanta.sendMessage(from, { text: commandList, contextInfo }, { quoted: mek });
         }
 
-        // ============================================
-        // 🟢 MAIN MENU (Alive Style Header)
-        // ============================================
-        const headerText = getMenuHeader({
-            botName: botName,
-            prefix: finalPrefix,
-            uptime: uptime,
-            mode: mode,
-            totalCmds: commands.length
+        // --- 🏠 Main Menu with Header ---
+        let currentDate = new Date();
+        let dateStr = currentDate.toLocaleDateString('en-GB').replace(/\//g, '/');
+        let timeStr = currentDate.toLocaleTimeString('en-US', { hour12: true });
+
+        let headerText = `╭──⦁──⦁─❤️─⦁──⦁──╮\n`;
+        headerText += `   💕 ${botName} 💕\n`;
+        headerText += `╰──⦁──⦁─⦁─⦁─⦁──⦁──╯\n\n`;
+        headerText += `👤 ᴏᴡɴᴇʀ: ${ownerName} 💕\n`;
+        headerText += `📅 ᴅᴀᴛᴇ  : ${dateStr} 📆\n`;
+        headerText += `⏰ ᴛɪᴍᴇ  : ${timeStr} ⏳\n`;
+        headerText += `:･°🌸⋆.ೃ🌷ೃ࿔:･°🌸⋆.ೃ࿔🌷࿔:･\n`;
+        headerText += `┆ ┆ ┆ ┆⋆ .ೃ࿔*:･°🌼\n`;
+        headerText += `┆ ┆ ┆જ ✾ 💮\n`;
+        headerText += `┆ ♡ • ➵ ✩  ° 💫\n`;
+        headerText += `┆彡\n`;
+        headerText += `🌸\n\n`;
+
+        // --- 📂 Menu Categories ---
+        let menuText = `╭━━━━━━━━━━━━━━━━━━━━╮\n`;
+        menuText += `┆   📂 ᴍᴀɪɴ ᴍᴇɴᴜ 📂\n`;
+        menuText += `╰━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+
+        const categoryEmojis = {
+            main: '🏠', download: '📥', tools: '🛠',
+            logo: '🎨', media: '🖼', group: '👥',
+            owner: '👑', ai: '🧠', misc: '📌'
+        };
+
+        const categoryNames = {
+            main: 'MAIN', download: 'DOWNLOAD', tools: 'TOOLS',
+            logo: 'LOGO', media: 'MEDIA', group: 'GROUP',
+            owner: 'OWNER', ai: 'AI', misc: 'MISC'
+        };
+
+        categoryKeys.forEach((catKey, index) => {
+            let emoji = categoryEmojis[catKey] || '📌';
+            let name = categoryNames[catKey] || catKey.toUpperCase();
+            menuText += `┆ ${index + 1}➊  ${emoji} ${name} ᴄᴍᴅ ʟɪꜱᴛ 🌷\n`;
+            menuText += `┆    ───────────────\n`;
         });
 
-        // --- 🖼️ IMAGE LOGIC ---
+        menuText += `\n╭━━━━━━━━━━━━━━━━━━━━╮\n`;
+        menuText += `┆ 📌 ᴛᴏᴛᴀʟ ᴄᴏᴍᴍᴀɴᴅꜱ : ${commands.length}\n`;
+        menuText += `┆ 🔣 ᴘʀᴇғɪx : ${finalPrefix}\n`;
+        menuText += `┆ ⚙️ ᴍᴏᴅᴇ : ${mode}\n`;
+        menuText += `╰━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+
+        menuText += `.help: ʙᴏᴛ ʜᴇʟᴘᴇʀ\n`;
+        menuText += `.settings: ʙᴏᴛ ꜱᴇᴛᴛɪɴɢꜱ ᴄʜᴀɴɢᴇ\n`;
+        menuText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        menuText += `📌 ɴᴏᴛᴇ : ʀᴇᴘʟʏ ᴡɪᴛʜ ɴᴜᴍʙᴇʀ ᴏɴʟʏ 💌\n`;
+        menuText += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+        menuText += `𝙲𝙾𝙽𝙽𝙴𝙲𝚃 𝙽𝙴𝚆 𝙱𝙾𝚃 ✅\n`;
+        menuText += `www.goldenqueen.store/wa-bot/\n`;
+        menuText += `</> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${botName}`;
+
+        // --- 🖼️ Image Logic ---
         let imageToDisplay;
         if (settings.botImage && settings.botImage !== "null" && settings.botImage.startsWith("http")) {
             imageToDisplay = { url: settings.botImage };
@@ -196,57 +177,43 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
         }
 
         if (isButtonsOn) {
-            // --- 🔵 BUTTONS ON MODE ---
-            let menuText = headerText + `
-◈◈◈◈◈◈◈◈◈◈◈
-*📌 SELECT A CATEGORY*
-◈◈◈◈◈◈◈◈◈◈◈
-`;
+            const buttonRows = [];
+            let row = [];
+            categoryKeys.forEach((catKey, index) => {
+                if (index < 3) {
+                    row.push({
+                        buttonId: `cat_${catKey}`,
+                        buttonText: { displayText: `${categoryEmojis[catKey] || '📌'} ${categoryNames[catKey] || catKey.toUpperCase()}` },
+                        type: 1
+                    });
+                } else {
+                    if (row.length > 0) {
+                        buttonRows.push({ title: "📂 MENU", rows: row });
+                        row = [];
+                    }
+                    row.push({
+                        buttonId: `cat_${catKey}`,
+                        buttonText: { displayText: `${categoryEmojis[catKey] || '📌'} ${categoryNames[catKey] || catKey.toUpperCase()}` },
+                        type: 1
+                    });
+                }
+            });
+            if (row.length > 0) {
+                buttonRows.push({ title: "📂 MORE", rows: row });
+            }
 
             return await zanta.sendMessage(from, {
                 image: imageToDisplay,
-                caption: menuText,
-                footer: `_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`,
-                buttons: [
-                    { buttonId: "cat_main", buttonText: { displayText: "🏠 MAIN" }, type: 1 },
-                    { buttonId: "cat_download", buttonText: { displayText: "📥 DOWNLOAD" }, type: 1 },
-                    { buttonId: "cat_tools", buttonText: { displayText: "🛠 TOOLS" }, type: 1 },
-                    { buttonId: "cat_logo", buttonText: { displayText: "🎨 LOGO" }, type: 1 },
-                    { buttonId: "cat_media", buttonText: { displayText: "🖼 MEDIA" }, type: 1 }
-                ],
+                caption: headerText + menuText,
+                footer: `© ${botName} • ${ownerName}`,
+                buttons: buttonRows,
                 headerType: 4,
                 contextInfo
             }, { quoted: mek });
-
         } else {
-            // --- 🟢 BUTTONS OFF MODE ---
-            let menuText = headerText + `
-◈◈◈◈◈◈◈◈◈◈◈
-*📌 CATEGORIES*
-◈◈◈◈◈◈◈◈◈◈◈
-`;
-
-            categoryKeys.forEach((catKey, index) => {
-                let title = catKey.toUpperCase();
-                let emoji = { 
-                    main: '🏠', 
-                    download: '📥', 
-                    tools: '🛠', 
-                    logo: '🎨', 
-                    media: '🖼' 
-                }[catKey] || '📌';
-                menuText += `\`✦  ${index + 1}. ${emoji} ${title} (${groupedCommands[catKey].length})\`\n`;
-            });
-
-            menuText += `
-◈◈◈◈◈◈◈◈◈◈◈
-*“ ʀᴇᴘʟʏ ᴡɪᴛʜ ɴᴜᴍʙᴇʀ ”*
-*⚡ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴇᴜꜱ ɪɴᴄ ⚡*
-`;
-
             const sent = await zanta.sendMessage(from, {
                 image: imageToDisplay,
-                caption: menuText,
+                caption: headerText + menuText,
                 contextInfo
             }, { quoted: mek });
 
