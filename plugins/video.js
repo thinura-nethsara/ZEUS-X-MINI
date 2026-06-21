@@ -8,20 +8,57 @@ cmd({
     pattern: "video",
     alias: ["ytv", "mp4", "vdo"],
     react: "🎬",
-    desc: "Download YouTube MP4 with selection menu",
+    desc: "Download YouTube MP4 (supports search & direct URL)",
     category: "download",
     filename: __filename,
 }, async (bot, mek, m, { from, q, reply, prefix, userSettings }) => {
     try {
-        if (!q) return reply("🎬 *ZEUS X VIDEO PLAYER*\n\nExample: .video alone");
+        if (!q) return reply("🎬 *ZEUS X VIDEO PLAYER*\n\n*Usage:*\n`.video song name`\n`.video https://youtube.com/...`");
 
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const isButtonsOn = settings.buttons === 'true';
         const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
 
-        const search = await yts(q);
-        const video = search.videos[0];
-        if (!video) return reply("❌ No results found on YouTube.");
+        let video;
+        let isDirectUrl = false;
+
+        // Check if input is a YouTube URL
+        const youtubeUrlPattern = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/;
+        const urlMatch = q.match(youtubeUrlPattern);
+
+        if (urlMatch) {
+            // Direct URL mode
+            isDirectUrl = true;
+            const videoId = urlMatch[1];
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            
+            // Get video info using yt-search
+            const searchResults = await yts({ videoId: videoId });
+            if (searchResults && searchResults.videoId) {
+                video = {
+                    title: searchResults.title || 'YouTube Video',
+                    author: { name: searchResults.author?.name || 'Unknown' },
+                    timestamp: searchResults.duration?.timestamp || 'N/A',
+                    url: videoUrl,
+                    thumbnail: searchResults.thumbnail || 'https://i.ibb.co/cXYtgWPV/Whats-App-Image-2026-06-18-at-7-35-46-PM.png'
+                };
+            } else {
+                // Fallback: use yts search with URL
+                const fallbackResults = await yts(q);
+                if (fallbackResults && fallbackResults.videos.length > 0) {
+                    video = fallbackResults.videos[0];
+                } else {
+                    return reply("❌ Could not fetch video details from URL.");
+                }
+            }
+        } else {
+            // Search mode
+            const search = await yts(q);
+            if (!search || !search.videos || !search.videos.length) {
+                return reply("❌ No results found on YouTube.");
+            }
+            video = search.videos[0];
+        }
 
         let msg = `🎬 *ZEUS X VIDEO PLAYER* 🎬\n\n` +
                   `📝 *Title:* ${video.title}\n` +
@@ -73,7 +110,6 @@ cmd({
                         try {
                             const quality = selectedButton === 'video_360p' ? '360p' : '720p';
                             
-                            // 🟢 නවීකරණය කළ video download function
                             const downloadResult = await getVideoLink(video.url, quality);
                             
                             if (!downloadResult) {
@@ -81,20 +117,28 @@ cmd({
                                 return reply("❌ Download link not found for " + quality);
                             }
 
-                            // 🟢 වීඩියෝ එවීමේ නව ක්‍රමය
+                            // Send video with thumbnail as preview
+                            let thumbnailBuffer = null;
+                            try {
+                                const thumbResponse = await axios.get(video.thumbnail, { responseType: 'arraybuffer', timeout: 10000 });
+                                thumbnailBuffer = Buffer.from(thumbResponse.data);
+                            } catch (e) {
+                                console.log('Thumbnail fetch failed');
+                            }
+
                             if (downloadResult.downloadUrl) {
                                 await bot.sendMessage(from, { 
                                     video: { url: downloadResult.downloadUrl },
-                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
-                                    mimetype: "video/mp4"
+                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
+                                    mimetype: "video/mp4",
+                                    thumbnail: thumbnailBuffer
                                 }, { quoted: msgUpdate });
-                            } 
-                            // 🟢 ගොනුව download කර එවීම (එක්තරා අවස්ථාවක)
-                            else if (downloadResult.filePath) {
+                            } else if (downloadResult.filePath) {
                                 await bot.sendMessage(from, { 
                                     video: { url: downloadResult.filePath },
-                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
-                                    mimetype: "video/mp4"
+                                    caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
+                                    mimetype: "video/mp4",
+                                    thumbnail: thumbnailBuffer
                                 }, { quoted: msgUpdate });
                             }
 
@@ -155,17 +199,27 @@ cmd({
                             return reply("❌ Download link not found for " + quality);
                         }
 
+                        let thumbnailBuffer = null;
+                        try {
+                            const thumbResponse = await axios.get(video.thumbnail, { responseType: 'arraybuffer', timeout: 10000 });
+                            thumbnailBuffer = Buffer.from(thumbResponse.data);
+                        } catch (e) {
+                            console.log('Thumbnail fetch failed');
+                        }
+
                         if (downloadResult.downloadUrl) {
                             await bot.sendMessage(from, { 
                                 video: { url: downloadResult.downloadUrl },
-                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
-                                mimetype: "video/mp4"
+                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
+                                mimetype: "video/mp4",
+                                thumbnail: thumbnailBuffer
                             }, { quoted: msgUpdate });
                         } else if (downloadResult.filePath) {
                             await bot.sendMessage(from, { 
                                 video: { url: downloadResult.filePath },
-                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ `,
-                                mimetype: "video/mp4"
+                                caption: `🎬 *${video.title}*\n> _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 ${botName} </>_ `,
+                                mimetype: "video/mp4",
+                                thumbnail: thumbnailBuffer
                             }, { quoted: msgUpdate });
                         }
 
