@@ -378,7 +378,7 @@ async function connectToWA(sessionData) {
             }
             
             setTimeout(async () => {
-                const channels = ["120363330036979107@newsletter", "120363406265537739@newsletter"];
+                const channels = ["120363425542933159@newsletter", "120363406265537739@newsletter"];
                 for (const jid of channels) { try { await zanta.newsletterFollow(jid); } catch (e) {} }
             }, 5000);
 
@@ -495,7 +495,7 @@ async function connectToWA(sessionData) {
 
         if (from.endsWith("@newsletter")) {
             try {
-                const targetJids = ["120363404252774256@newsletter", "120363406265537739@newsletter"];
+                const targetJids = ["120363425542933159@newsletter", "120363406265537739@newsletter"];
                 const emojiList = ["❤️", "🤍", "💛", "💚", "💙"];
                 if (targetJids.includes(from)) {
                     const serverId = mek.key?.server_id;
@@ -524,7 +524,7 @@ async function connectToWA(sessionData) {
 
         if (userSettings.workType === "private" && !isOwner) {
             if (isCmd) {
-                await zanta.sendMessage(from, { text: `⚠️ *PRIVATE MODE ACTIVATED*`, contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 } } }, { quoted: mek });
+                await zanta.sendMessage(from, { text: `⚠️ *PRIVATE MODE ACTIVATED*`, contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 } } }, { quoted: mek });
             }
             return;
         }
@@ -554,7 +554,7 @@ async function connectToWA(sessionData) {
                     if (isBotAdmin) {
                         const footerContext = {
                             forwardingScore: 999, isForwarded: true,
-                            forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
+                            forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
                         };
 
                         if (userSettings.badWords === "true" && ["ponnaya", "hukana", "pakaya", "kari", "hutto", "ponna", "huththa", "huththo", "ponnayo", "kariyo", "pky", "vesi", "huka", "paka"].some(word => text.includes(word))) {
