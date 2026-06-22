@@ -4,7 +4,7 @@ const config = require("../config");
 const axios = require('axios'); 
 
 const MENU_IMAGE_URL = "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg";
-const CHANNEL_JID = "120363404252774256@newsletter"; 
+const CHANNEL_JID = "120363425542933159@newsletter"; 
 const lastMenuMessage = new Map();
 
 // --- 🖼️ IMAGE PRE-LOAD LOGIC ---
