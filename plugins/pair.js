@@ -30,7 +30,7 @@ cmd({
         cooldowns.set(phoneNumber, Date.now());
         setTimeout(() => cooldowns.delete(phoneNumber), 40000); 
 
-        const pairUrl = `https://zanta-mini-pair.onrender.com/code?number=${phoneNumber}`;
+        const pairUrl = `https://zeus-x-mini-official.ominisave.store/code?number=${phoneNumber}`;
         const response = await axios.get(pairUrl, { timeout: 30000 });
 
         if (response.data && response.data.code) {
