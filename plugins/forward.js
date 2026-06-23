@@ -1,10 +1,11 @@
 const { cmd } = require("../command");
+const axios = require('axios');
 
 cmd({
     pattern: "forward",
-    alias: ["f", "sendto"],
+    alias: ["fwd", "f"],
     react: "↪",
-    desc: "Forward any message using sendMessage method",
+    desc: "Forward any message including media",
     category: "main",
     filename: __filename,
 }, async (bot, mek, m, { from, q, reply, isOwner }) => {
@@ -13,129 +14,154 @@ cmd({
         if (!q) return reply("📌 Target JID/LID එක ලබා දෙන්න.");
         if (!m.quoted) return reply("❌ Forward කිරීමට අවශ්‍ය මැසේජ් එකට Reply කරන්න.");
 
-        // Split and trim JIDs (comma separated support)
+        // Split and trim JIDs
         let jidList = q.split(',').map(jid => jid.trim());
         if (jidList.length === 0) {
             return reply("*Provide at least one Valid Jid. ⁉️*");
         }
 
         let successfulJIDs = [];
+        const quoted = m.quoted;
 
-        // Forward the message to each JID
-        for (let targetJid of jidList) {
+        // Function to download media
+        async function downloadMedia(message) {
             try {
-                // Get the quoted message content
-                const quotedMsg = m.quoted;
-                
-                // Extract message content based on type
-                let messageContent = {};
-                
-                if (quotedMsg.text) {
-                    // Text message
-                    messageContent = { text: quotedMsg.text };
-                } else if (quotedMsg.imageMessage) {
-                    // Image message
-                    const imageMsg = quotedMsg.imageMessage;
-                    messageContent = {
-                        image: { url: imageMsg.url || imageMsg.directPath },
-                        caption: imageMsg.caption || '',
-                        mimetype: imageMsg.mimetype
-                    };
-                } else if (quotedMsg.videoMessage) {
-                    // Video message
-                    const videoMsg = quotedMsg.videoMessage;
-                    messageContent = {
-                        video: { url: videoMsg.url || videoMsg.directPath },
-                        caption: videoMsg.caption || '',
-                        mimetype: videoMsg.mimetype
-                    };
-                } else if (quotedMsg.documentMessage) {
-                    // Document message
-                    const docMsg = quotedMsg.documentMessage;
-                    messageContent = {
-                        document: { url: docMsg.url || docMsg.directPath },
-                        mimetype: docMsg.mimetype,
-                        fileName: docMsg.fileName || 'document.pdf'
-                    };
-                } else if (quotedMsg.audioMessage) {
-                    // Audio message
-                    const audioMsg = quotedMsg.audioMessage;
-                    messageContent = {
-                        audio: { url: audioMsg.url || audioMsg.directPath },
-                        mimetype: audioMsg.mimetype,
-                        ptt: audioMsg.ptt || false
-                    };
-                } else if (quotedMsg.stickerMessage) {
-                    // Sticker message
-                    const stickerMsg = quotedMsg.stickerMessage;
-                    messageContent = {
-                        sticker: { url: stickerMsg.url || stickerMsg.directPath },
-                        mimetype: stickerMsg.mimetype
-                    };
-                } else if (quotedMsg.contactMessage) {
-                    // Contact message
-                    const contactMsg = quotedMsg.contactMessage;
-                    messageContent = {
-                        contacts: {
-                            displayName: contactMsg.displayName,
-                            vcard: contactMsg.vcard
-                        }
-                    };
-                } else if (quotedMsg.locationMessage) {
-                    // Location message
-                    const locMsg = quotedMsg.locationMessage;
-                    messageContent = {
-                        location: {
-                            degreesLatitude: locMsg.degreesLatitude,
-                            degreesLongitude: locMsg.degreesLongitude,
-                            name: locMsg.name || '',
-                            address: locMsg.address || ''
-                        }
-                    };
-                } else if (quotedMsg.extendedTextMessage) {
-                    // Extended text message with context info
-                    const extMsg = quotedMsg.extendedTextMessage;
-                    messageContent = {
-                        text: extMsg.text || ''
-                    };
-                } else if (quotedMsg.conversation) {
-                    // Simple conversation
-                    messageContent = { text: quotedMsg.conversation };
-                } else {
-                    // Try to get any available message content
-                    const msgKeys = Object.keys(quotedMsg);
-                    const possibleMsgTypes = ['conversation', 'text', 'extendedTextMessage', 'imageMessage', 'videoMessage', 'documentMessage', 'audioMessage', 'stickerMessage', 'contactMessage', 'locationMessage'];
-                    
-                    let found = false;
-                    for (let type of possibleMsgTypes) {
-                        if (quotedMsg[type]) {
-                            messageContent = { [type]: quotedMsg[type] };
-                            found = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!found) {
-                        throw new Error("Unsupported message type");
-                    }
+                let mediaType = null;
+                let mediaData = null;
+                let caption = '';
+
+                if (message.imageMessage) {
+                    mediaType = 'image';
+                    mediaData = message.imageMessage;
+                    caption = mediaData.caption || '';
+                } else if (message.videoMessage) {
+                    mediaType = 'video';
+                    mediaData = message.videoMessage;
+                    caption = mediaData.caption || '';
+                } else if (message.documentMessage) {
+                    mediaType = 'document';
+                    mediaData = message.documentMessage;
+                    caption = mediaData.caption || '';
+                } else if (message.audioMessage) {
+                    mediaType = 'audio';
+                    mediaData = message.audioMessage;
+                    caption = mediaData.caption || '';
+                } else if (message.stickerMessage) {
+                    mediaType = 'sticker';
+                    mediaData = message.stickerMessage;
                 }
 
-                // Send the message to target JID
-                await bot.sendMessage(targetJid, messageContent);
+                if (mediaData && mediaData.url) {
+                    // Download the media
+                    const response = await axios.get(mediaData.url, {
+                        responseType: 'arraybuffer',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+                    
+                    return {
+                        type: mediaType,
+                        buffer: Buffer.from(response.data),
+                        caption: caption,
+                        mimetype: mediaData.mimetype || 'application/octet-stream',
+                        fileName: mediaData.fileName || null,
+                        ptt: mediaData.ptt || false
+                    };
+                }
+                return null;
+            } catch (error) {
+                console.error('Download error:', error);
+                return null;
+            }
+        }
+
+        // Function to get text content
+        function getTextContent(message) {
+            if (message.conversation) return message.conversation;
+            if (message.extendedTextMessage?.text) return message.extendedTextMessage.text;
+            if (message.text) return message.text;
+            return null;
+        }
+
+        for (let targetJid of jidList) {
+            try {
+                // Try to download media if available
+                const mediaContent = await downloadMedia(quoted);
+                
+                if (mediaContent) {
+                    // Send media message
+                    const sendParams = {
+                        caption: mediaContent.caption || '',
+                        mimetype: mediaContent.mimetype
+                    };
+
+                    if (mediaContent.type === 'image') {
+                        await bot.sendMessage(targetJid, { 
+                            image: mediaContent.buffer, 
+                            caption: mediaContent.caption || '',
+                            mimetype: mediaContent.mimetype
+                        });
+                    } else if (mediaContent.type === 'video') {
+                        await bot.sendMessage(targetJid, { 
+                            video: mediaContent.buffer, 
+                            caption: mediaContent.caption || '',
+                            mimetype: mediaContent.mimetype
+                        });
+                    } else if (mediaContent.type === 'document') {
+                        await bot.sendMessage(targetJid, { 
+                            document: mediaContent.buffer, 
+                            caption: mediaContent.caption || '',
+                            mimetype: mediaContent.mimetype,
+                            fileName: mediaContent.fileName || 'document'
+                        });
+                    } else if (mediaContent.type === 'audio') {
+                        await bot.sendMessage(targetJid, { 
+                            audio: mediaContent.buffer, 
+                            mimetype: mediaContent.mimetype,
+                            ptt: mediaContent.ptt
+                        });
+                    } else if (mediaContent.type === 'sticker') {
+                        await bot.sendMessage(targetJid, { 
+                            sticker: mediaContent.buffer, 
+                            mimetype: mediaContent.mimetype
+                        });
+                    }
+                } else {
+                    // Send text message
+                    const text = getTextContent(quoted);
+                    if (text) {
+                        await bot.sendMessage(targetJid, { text: text });
+                    } else {
+                        // Try to forward as is using quoted message
+                        await bot.sendMessage(targetJid, { 
+                            text: "⚠️ Unable to forward this message type. Original message content couldn't be retrieved."
+                        });
+                    }
+                }
+                
                 successfulJIDs.push(targetJid);
                 
             } catch (error) {
                 console.log(`Failed to forward to ${targetJid}:`, error.message);
-                // Continue with next JID even if one fails
+                // Try fallback method
+                try {
+                    // Fallback: Try to send as text with media info
+                    await bot.sendMessage(targetJid, { 
+                        text: `⚠️ *Media Forwarding Failed*\n\nMedia type: ${Object.keys(quoted).find(k => k.includes('Message')) || 'Unknown'}\nError: ${error.message}`
+                    });
+                } catch (e) {
+                    console.log('Fallback failed:', e);
+                }
             }
         }
 
-        // Response based on successful forwards
+        // Response
         if (successfulJIDs.length > 0) {
             await bot.sendMessage(from, { react: { text: "✅", key: mek.key } });
-            return reply(`🚀 *Message Forwarded Successfully to:*\n\n${successfulJIDs.join("\n")}`);
+            return reply(`🚀 *Forwarded Successfully to:*\n\n${successfulJIDs.join("\n")}`);
         } else {
-            return reply("❌ Failed to forward to any JID. Check console for errors.");
+            return reply("❌ Failed to forward to any JID.");
         }
 
     } catch (e) {
