@@ -1,10 +1,12 @@
+const { cmd } = require("../command");
+
 cmd({
     pattern: "forward",
     react: "⏩",
     alias: ["f"],
     desc: "Forward messages with media support",
     use: ".f jid1,jid2",
-    category: "main",
+    category: "owner",
     filename: __filename
 },
 async (conn, mek, m, { from, q, reply, isOwner, isMe, isSudo }) => {
@@ -26,7 +28,7 @@ async (conn, mek, m, { from, q, reply, isOwner, isMe, isSudo }) => {
             try {
                 // ---- TEXT MESSAGE ----
                 if (quoted.type === "conversation" || quoted.text) {
-                    await conn.sendMessage(targetJid, { text: quoted.text || quoted.msg });
+                    await conn.sendMessage(targetJid, { text: quoted.text || quoted.msg || quoted.body || '' });
                     successfulJIDs.push(targetJid);
                 }
                 // ---- IMAGE MESSAGE ----
@@ -93,6 +95,24 @@ async (conn, mek, m, { from, q, reply, isOwner, isMe, isSudo }) => {
                     });
                     successfulJIDs.push(targetJid);
                 }
+                // ---- VIEW ONCE (AUDIO) ----
+                else if (quoted.viewOnceMessageV2Extension?.message?.audioMessage) {
+                    const audioMsg = quoted.viewOnceMessageV2Extension.message.audioMessage;
+                    const audio = await quoted.download();
+                    await conn.sendMessage(targetJid, { 
+                        audio: audio, 
+                        mimetype: 'audio/mpeg',
+                        ptt: audioMsg?.ptt || false,
+                        viewOnce: true 
+                    });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- EXTENDED TEXT ----
+                else if (quoted.extendedTextMessage) {
+                    const text = quoted.extendedTextMessage.text || '';
+                    await conn.sendMessage(targetJid, { text: text });
+                    successfulJIDs.push(targetJid);
+                }
                 // ---- DEFAULT / UNKNOWN ----
                 else {
                     // Try to send as text if possible
@@ -112,7 +132,9 @@ async (conn, mek, m, { from, q, reply, isOwner, isMe, isSudo }) => {
                     await conn.sendMessage(targetJid, { 
                         text: `⚠️ *Forward Failed*\nType: ${quoted.type || 'Unknown'}\nError: ${error.message}` 
                     });
-                } catch (e) {}
+                } catch (e) {
+                    console.log('Fallback failed:', e);
+                }
             }
         }
 
