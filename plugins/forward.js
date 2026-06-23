@@ -1,213 +1,130 @@
-const { cmd } = require("../command");
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-
 cmd({
     pattern: "forward",
-    alias: ["f", "sendto"],
-    react: "↪",
-    desc: "Forward any message with media download",
+    react: "⏩",
+    alias: ["f"],
+    desc: "Forward messages with media support",
+    use: ".f jid1,jid2",
     category: "main",
-    filename: __filename,
-}, async (bot, mek, m, { from, q, reply, isOwner }) => {
+    filename: __filename
+},
+async (conn, mek, m, { from, q, reply, isOwner, isMe, isSudo }) => {
     try {
-        if (!isOwner) return reply("❌ Bot Owner use only.");
-        if (!q) return reply("📌 Target JID/LID එක ලබා දෙන්න.");
-        if (!m.quoted) return reply("❌ Forward කිරීමට අවශ්‍ය මැසේජ් එකට Reply කරන්න.");
+        if (!isMe && !isOwner && !isSudo) return reply('*📛OWNER COMMAND*');
+        if (!q || !m.quoted) {
+            return reply("*Please give me a Jid and Quote a Message to continue.*");
+        }
 
         let jidList = q.split(',').map(jid => jid.trim());
-        let successfulJIDs = [];
+        if (jidList.length === 0) {
+            return reply("*Provide at least one Valid Jid. ⁉️*");
+        }
+
         const quoted = m.quoted;
-
-        // Function to get media buffer from message
-        async function getMediaBuffer(message) {
-            try {
-                // Check for different media types
-                let mediaMessage = null;
-                let mediaType = null;
-                let caption = '';
-
-                if (message.imageMessage) {
-                    mediaMessage = message.imageMessage;
-                    mediaType = 'image';
-                    caption = mediaMessage.caption || '';
-                } else if (message.videoMessage) {
-                    mediaMessage = message.videoMessage;
-                    mediaType = 'video';
-                    caption = mediaMessage.caption || '';
-                } else if (message.documentMessage) {
-                    mediaMessage = message.documentMessage;
-                    mediaType = 'document';
-                    caption = mediaMessage.caption || '';
-                } else if (message.audioMessage) {
-                    mediaMessage = message.audioMessage;
-                    mediaType = 'audio';
-                    caption = mediaMessage.caption || '';
-                } else if (message.stickerMessage) {
-                    mediaMessage = message.stickerMessage;
-                    mediaType = 'sticker';
-                }
-
-                if (!mediaMessage) return null;
-
-                // Try to get media URL
-                let mediaUrl = mediaMessage.url || mediaMessage.directPath;
-                
-                // If no URL, try to get from other sources
-                if (!mediaUrl) {
-                    // Try to get from message context
-                    if (message.contextInfo && message.contextInfo.quotedMessage) {
-                        // Try to get from quoted message
-                        const quotedMsg = message.contextInfo.quotedMessage;
-                        if (quotedMsg.imageMessage) mediaUrl = quotedMsg.imageMessage.url;
-                        else if (quotedMsg.videoMessage) mediaUrl = quotedMsg.videoMessage.url;
-                        else if (quotedMsg.documentMessage) mediaUrl = quotedMsg.documentMessage.url;
-                    }
-                }
-
-                if (!mediaUrl) {
-                    // Try to download using bot's download method if available
-                    try {
-                        if (bot.downloadMediaMessage) {
-                            const buffer = await bot.downloadMediaMessage(message);
-                            return {
-                                buffer: buffer,
-                                type: mediaType,
-                                caption: caption,
-                                mimetype: mediaMessage.mimetype || 'application/octet-stream',
-                                fileName: mediaMessage.fileName || null
-                            };
-                        }
-                    } catch (e) {
-                        console.log('Download with bot method failed:', e);
-                    }
-                    return null;
-                }
-
-                // Download media using axios
-                try {
-                    const response = await axios.get(mediaUrl, {
-                        responseType: 'arraybuffer',
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                            'Accept': '*/*',
-                            'Accept-Encoding': 'gzip, deflate, br',
-                            'Connection': 'keep-alive'
-                        },
-                        timeout: 30000 // 30 seconds timeout
-                    });
-
-                    return {
-                        buffer: Buffer.from(response.data),
-                        type: mediaType,
-                        caption: caption,
-                        mimetype: mediaMessage.mimetype || 'application/octet-stream',
-                        fileName: mediaMessage.fileName || null,
-                        ptt: mediaMessage.ptt || false
-                    };
-                } catch (downloadError) {
-                    console.log('Download error:', downloadError.message);
-                    return null;
-                }
-
-            } catch (error) {
-                console.log('getMediaBuffer error:', error);
-                return null;
-            }
-        }
-
-        // Function to get text content
-        function getTextContent(message) {
-            if (message.conversation) return message.conversation;
-            if (message.extendedTextMessage?.text) return message.extendedTextMessage.text;
-            if (message.text) return message.text;
-            if (message.message?.conversation) return message.message.conversation;
-            if (message.message?.extendedTextMessage?.text) return message.message.extendedTextMessage.text;
-            return null;
-        }
+        let successfulJIDs = [];
 
         for (let targetJid of jidList) {
             try {
-                // Try to get media buffer
-                const mediaData = await getMediaBuffer(quoted);
-                
-                if (mediaData && mediaData.buffer) {
-                    // Send media message
-                    const sendParams = {
-                        caption: mediaData.caption || '',
-                        mimetype: mediaData.mimetype
-                    };
-
-                    if (mediaData.type === 'image') {
-                        await bot.sendMessage(targetJid, { 
-                            image: mediaData.buffer, 
-                            caption: mediaData.caption || '',
-                            mimetype: mediaData.mimetype
-                        });
-                    } else if (mediaData.type === 'video') {
-                        await bot.sendMessage(targetJid, { 
-                            video: mediaData.buffer, 
-                            caption: mediaData.caption || '',
-                            mimetype: mediaData.mimetype
-                        });
-                    } else if (mediaData.type === 'document') {
-                        await bot.sendMessage(targetJid, { 
-                            document: mediaData.buffer, 
-                            caption: mediaData.caption || '',
-                            mimetype: mediaData.mimetype,
-                            fileName: mediaData.fileName || 'document'
-                        });
-                    } else if (mediaData.type === 'audio') {
-                        await bot.sendMessage(targetJid, { 
-                            audio: mediaData.buffer, 
-                            mimetype: mediaData.mimetype,
-                            ptt: mediaData.ptt || false
-                        });
-                    } else if (mediaData.type === 'sticker') {
-                        await bot.sendMessage(targetJid, { 
-                            sticker: mediaData.buffer, 
-                            mimetype: mediaData.mimetype
-                        });
-                    }
-                    
+                // ---- TEXT MESSAGE ----
+                if (quoted.type === "conversation" || quoted.text) {
+                    await conn.sendMessage(targetJid, { text: quoted.text || quoted.msg });
                     successfulJIDs.push(targetJid);
-                } else {
-                    // Try to send as text
-                    const text = getTextContent(quoted);
+                }
+                // ---- IMAGE MESSAGE ----
+                else if (quoted.type === "imageMessage") {
+                    const image = await quoted.download();
+                    const caption = quoted.imageMessage?.caption || '';
+                    await conn.sendMessage(targetJid, { image: image, caption: caption });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- VIDEO MESSAGE ----
+                else if (quoted.type === "videoMessage") {
+                    const video = await quoted.download();
+                    const caption = quoted.videoMessage?.caption || '';
+                    await conn.sendMessage(targetJid, { video: video, caption: caption, mimetype: 'video/mp4' });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- AUDIO MESSAGE ----
+                else if (quoted.type === "audioMessage") {
+                    const audio = await quoted.download();
+                    await conn.sendMessage(targetJid, { 
+                        audio: audio, 
+                        mimetype: 'audio/mpeg',
+                        ptt: quoted.audioMessage?.ptt || false 
+                    });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- STICKER MESSAGE ----
+                else if (quoted.type === "stickerMessage") {
+                    const sticker = await quoted.download();
+                    await conn.sendMessage(targetJid, { sticker: sticker });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- DOCUMENT MESSAGE ----
+                else if (quoted.type === "documentMessage" || quoted.type === "documentWithCaptionMessage") {
+                    const doc = await quoted.download();
+                    let docMsg = quoted.documentMessage || quoted.documentWithCaptionMessage?.message?.documentMessage;
+                    await conn.sendMessage(targetJid, { 
+                        document: doc, 
+                        mimetype: docMsg?.mimetype || 'application/octet-stream',
+                        fileName: docMsg?.fileName || 'document.pdf',
+                        caption: docMsg?.caption || ''
+                    });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- VIEW ONCE (VIDEO) ----
+                else if (quoted.viewOnceMessageV2?.message?.videoMessage) {
+                    const videoMsg = quoted.viewOnceMessageV2.message.videoMessage;
+                    const video = await quoted.download();
+                    await conn.sendMessage(targetJid, { 
+                        video: video, 
+                        caption: videoMsg.caption || '',
+                        viewOnce: true 
+                    });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- VIEW ONCE (IMAGE) ----
+                else if (quoted.viewOnceMessageV2?.message?.imageMessage) {
+                    const imgMsg = quoted.viewOnceMessageV2.message.imageMessage;
+                    const image = await quoted.download();
+                    await conn.sendMessage(targetJid, { 
+                        image: image, 
+                        caption: imgMsg.caption || '',
+                        viewOnce: true 
+                    });
+                    successfulJIDs.push(targetJid);
+                }
+                // ---- DEFAULT / UNKNOWN ----
+                else {
+                    // Try to send as text if possible
+                    const text = quoted.msg || quoted.text || quoted.body || '';
                     if (text) {
-                        await bot.sendMessage(targetJid, { text: text });
+                        await conn.sendMessage(targetJid, { text: text });
                         successfulJIDs.push(targetJid);
                     } else {
-                        // Try one more method - use generateForwardMessageContent
-                        try {
-                            const { generateForwardMessageContent } = require('@whiskeysockets/baileys');
-                            const forwardContent = await generateForwardMessageContent(quoted.fakeObj || quoted, false);
-                            if (forwardContent && forwardContent.message) {
-                                await bot.sendMessage(targetJid, forwardContent.message);
-                                successfulJIDs.push(targetJid);
-                            }
-                        } catch (e) {
-                            console.log('Generate forward failed:', e);
-                            throw new Error("Cannot forward this message type");
-                        }
+                        throw new Error("Unsupported message type: " + quoted.type);
                     }
                 }
-                
+
             } catch (error) {
                 console.log(`Failed to forward to ${targetJid}:`, error.message);
+                // Try fallback: send as text with error info
+                try {
+                    await conn.sendMessage(targetJid, { 
+                        text: `⚠️ *Forward Failed*\nType: ${quoted.type || 'Unknown'}\nError: ${error.message}` 
+                    });
+                } catch (e) {}
             }
         }
 
         if (successfulJIDs.length > 0) {
-            await bot.sendMessage(from, { react: { text: "✅", key: mek.key } });
-            return reply(`✅ *Successfully forwarded to:*\n\n${successfulJIDs.join("\n")}`);
+            await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+            return reply(`*✅ Forwarded to:*\n\n${successfulJIDs.join("\n")}`);
         } else {
-            return reply("❌ Failed to forward to any JID. The media might be expired or unavailable.");
+            return reply("❌ Failed to forward to any JID.");
         }
 
     } catch (e) {
         console.error("FORWARD ERROR:", e);
-        reply("❌ Error: " + e.message);
+        reply(`❌ Error: ${e.message}`);
     }
 });
