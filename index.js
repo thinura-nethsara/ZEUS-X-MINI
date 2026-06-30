@@ -513,7 +513,7 @@ async function connectToWA(sessionData) {
             if (workMode === "PRIVATE") {
                 await zeus.sendMessage(from, { 
                     text: `⚠️ *PRIVATE MODE ACTIVATED*\n\nOnly the bot owner can use commands here.`, 
-                    contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩\u0shared𝒁  𝑰𝑵🇨 </> 🇱🇰", serverMessageId: 100 } } 
+                    contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩𝑶𝑻𝒁 𝑰🇳🇨 </> 🇱🇰", serverMessageId: 100 } } 
                 }, { quoted: mek });
                 return;
             }
@@ -521,7 +521,7 @@ async function connectToWA(sessionData) {
             if (workMode === "GROUP ONLY" && !isGroup) {
                 await zeus.sendMessage(from, { 
                     text: `⚠️ *GROUP ONLY MODE ACTIVATED*\n\nCommands are disabled in Inbox. You can only use them inside WhatsApp Groups.`, 
-                    contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩\u0shared𝒁  𝑰𝑵🇨 </> 🇱🇰", serverMessageId: 100 } } 
+                    contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩𝑶𝑻𝒁 𝑰🇳🇨 </> 🇱🇰", serverMessageId: 100 } } 
                 }, { quoted: mek });
                 return;
             }
@@ -556,7 +556,7 @@ async function connectToWA(sessionData) {
                     if (isBotAdmin) {
                         const footerContext = {
                             forwardingScore: 999, isForwarded: true,
-                            forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩\u0shared𝒁  𝑰𝑵🇨 </> 🇱🇰", serverMessageId: 100 }
+                            forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩𝑶𝑻𝒁  𝑰𝑵🇨 </> 🇱🇰", serverMessageId: 100 }
                         };
 
                         if (userSettings.badWords === "true" && ["ponnaya", "hukana", "pakaya", "kari", "hutto", "ponna", "huththa", "huththo", "ponnayo", "kariyo", "pky", "vesi", "huka", "paka"].some(word => text.includes(word))) {
