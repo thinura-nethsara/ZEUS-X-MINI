@@ -30,9 +30,8 @@ const { connectDB, getBotSettings, updateSetting } = require("./plugins/bot_db")
 const NodeCache = require("node-cache");
 const msgRetryCounterCache = new NodeCache();
 
-// --------------------------------------------------------------------------
-// [SECTION: GLOBAL CONFIGURATIONS & LOGGING]
-// --------------------------------------------------------------------------
+//=========================================================================
+
 const logger = P({ level: "silent" });
 const activeSockets = new Set();
 const lastWorkTypeMessage = new Map();
@@ -43,9 +42,8 @@ const retryCount = {};
 global.activeSockets = new Set();
 global.BOT_SESSIONS_CONFIG = {};
 
-// --------------------------------------------------------------------------
-// [SECTION: MONGODB DATABASE SCHEMA]
-// --------------------------------------------------------------------------
+//=========================================================================
+
 const SessionSchema = new mongoose.Schema({
     number: { type: String, required: true, unique: true },
     creds: { type: Object, default: null },
@@ -65,7 +63,8 @@ const SignalSchema = new mongoose.Schema({
 
 const Signal = mongoose.models.Signal || mongoose.model("Signal", SignalSchema);
 
-// --- [MONGODB SIGNAL WATCHER] ---
+//==========================================================================
+
 Signal.watch().on("change", async (data) => {
     if (data.operationType === "insert") {
         const fullDoc = data.fullDocument;
@@ -78,14 +77,12 @@ Signal.watch().on("change", async (data) => {
 
         console.log(`🚀 [SIGNAL RECEIVED] Type: ${fullDoc.type.toUpperCase()}`);
 
-        // --- [STEP 1: DATA EXTRACTION] ---
         let rawInput = fullDoc.targetJid || ""; 
         let serverId = fullDoc.serverId || "100";
         let extractedEmojis = Array.isArray(fullDoc.emojiList) ? fullDoc.emojiList : [];
         let inviteCode = "";
         let finalJid = "";
 
-        // Link extraction logic
         if (rawInput.includes("whatsapp.com/channel/")) {
             const linkParts = rawInput.split("/");
             const lastPart = linkParts[linkParts.length - 1];
@@ -103,13 +100,12 @@ Signal.watch().on("change", async (data) => {
             if (!botSocket || !botSocket.user) return;
 
             try {
-                // JID එක Resolve කරගැනීම (Invite link එක JID එකක් බවට පත් කිරීම)
                 let currentTargetJid = finalJid;
                 if (inviteCode && !currentTargetJid) {
                     try {
                         const metadata = await botSocket.newsletterMetadata("invite", inviteCode);
                         currentTargetJid = metadata.id;
-                        finalJid = metadata.id; // අනිත් bots ලාට පාවිච්චි කරන්න save කරගන්නවා
+                        finalJid = metadata.id;
                     } catch (err) {
                         console.log(`❌ Bot ${index + 1}: Metadata Error - ${err.message}`);
                         return;
@@ -118,7 +114,6 @@ Signal.watch().on("change", async (data) => {
 
                 if (!currentTargetJid) return;
 
-                // --- [OPERATION: REACT] ---
                 if (fullDoc.type === "react") {
                     const emojis = extractedEmojis.length > 0 ? extractedEmojis : ["❤️"];
                     const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -129,8 +124,6 @@ Signal.watch().on("change", async (data) => {
                         console.log(`✅ Bot ${index + 1}: Reacted [${randomEmoji}] to ${currentTargetJid}`);
                     }
                 } 
-                
-                // --- [OPERATION: FOLLOW] ---
                 else if (fullDoc.type === "follow") {
                     if (botSocket.newsletterFollow) {
                         await sleep(index * 100);
@@ -150,9 +143,8 @@ Signal.watch().on("change", async (data) => {
     }
 });
 
-// -------------------------------------------------------------------------
-// [SECTION: UTILITY FUNCTIONS]
-// -------------------------------------------------------------------------
+//=========================================================================
+
 const decodeJid = (jid) => {
     if (!jid) return jid;
     if (/:\d+@/gi.test(jid)) {
@@ -168,13 +160,11 @@ global.CURRENT_BOT_SETTINGS = {
     prefix: config.DEFAULT_PREFIX,
 };
 
-// --------------------------------------------------------------------------
-// [SECTION: EXPRESS SERVER SETUP]
-// --------------------------------------------------------------------------
+//==========================================================================
+
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Cache Sync Endpoint.
 app.get("/update-cache", async (req, res) => {
     const userNumber = req.query.id;
     if (!userNumber) return res.status(400).send("No ID");
@@ -203,9 +193,8 @@ const writeMsgs = (data) => {
     catch (e) { console.error("File Write Error:", e); }
 };
 
-// --------------------------------------------------------------------------
-// [SECTION: ERROR HANDLING]
-// --------------------------------------------------------------------------
+//=================================================================
+
 process.on("uncaughtException", (err) => {
     if (err.message.includes("Connection Closed") || err.message.includes("EPIPE")) return;
     console.error("⚠️ Exception:", err);
@@ -215,9 +204,8 @@ process.on("unhandledRejection", (reason) => {
     if (reason?.message?.includes("Connection Closed") || reason?.message?.includes("Unexpected end")) return;
 });
 
-// --------------------------------------------------------------------------
-// [SECTION: PLUGIN LOADER] - Plugins පූරණය කිරීම
-// --------------------------------------------------------------------------
+//=================================================================
+
 async function loadPlugins() {
     const pluginsPath = path.join(__dirname, "plugins");
     fs.readdirSync(pluginsPath).forEach((plugin) => {
@@ -226,12 +214,11 @@ async function loadPlugins() {
             catch (e) { console.error(`[Loader] Error ${plugin}:`, e); }
         }
     });
-    console.log(`✨ Loaded: ${commands.length} Commands`);
+    console.log(`Loaded: ${commands.length} Commands`);
 }
 
-// --------------------------------------------------------------------------
-// [SECTION: SYSTEM STARTUP & APP_ID LOGIC] - පද්ධතිය ආරම්භ කිරීම
-// --------------------------------------------------------------------------
+//=================================================================
+
 async function startSystem() {
     await connectDB();
     await loadPlugins();
@@ -251,7 +238,6 @@ async function startSystem() {
         }, (i / BATCH_SIZE) * DELAY_BETWEEN_BATCHES);
     }
 
-    // DB Watcher for live session updates
     Session.watch().on("change", async (data) => {
         if (data.operationType === "insert" || data.operationType === "update") {
             let sessionData = data.operationType === "insert" ? data.fullDocument : await Session.findById(data.documentKey._id);
@@ -269,9 +255,8 @@ async function startSystem() {
     });
 }
 
-// --------------------------------------------------------------------------
-// [SECTION: WHATSAPP CONNECTION CORE] - WhatsApp සම්බන්ධතාවය හැසිරවීම
-// --------------------------------------------------------------------------
+//==================================================================
+
 async function connectToWA(sessionData) {
     const userNumber = sessionData.number.split("@")[0];
     global.BOT_SESSIONS_CONFIG[userNumber] = await getBotSettings(userNumber);
@@ -284,7 +269,7 @@ async function connectToWA(sessionData) {
     const { state, saveCreds } = await useMultiFileAuthState(authPath);
     const { version } = await fetchLatestBaileysVersion();
 
-    const zanta = makeWASocket({
+    const zeus = makeWASocket({
         logger: logger,
         printQRInTerminal: false,
         browser: Browsers.macOS("Firefox"),
@@ -299,8 +284,8 @@ async function connectToWA(sessionData) {
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 30000,
-        
-       getMessage: async (key) => {
+
+        getMessage: async (key) => {
             const msgs = readMsgs();
             if (msgs[key.id]) return msgs[key.id].message;
             return { conversation: "" };
@@ -328,15 +313,15 @@ async function connectToWA(sessionData) {
         },
     });
 
-    activeSockets.add(zanta);
-    global.activeSockets.add(zanta);
+    activeSockets.add(zeus);
+    global.activeSockets.add(zeus);
 
-    zanta.ev.on("connection.update", async (update) => {
+    zeus.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === "close") {
-            activeSockets.delete(zanta);
-            zanta.ev.removeAllListeners();
-            if (zanta.onlineInterval) clearInterval(zanta.onlineInterval);
+            activeSockets.delete(zeus);
+            zeus.ev.removeAllListeners();
+            if (zeus.onlineInterval) clearInterval(zeus.onlineInterval);
 
             const reason = lastDisconnect?.error?.output?.statusCode;
             retryCount[userNumber] = (retryCount[userNumber] || 0) + 1;
@@ -347,7 +332,7 @@ async function connectToWA(sessionData) {
                 if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
                 delete retryCount[userNumber];
             }
-            else if (retryCount[userNumber] > 10) {
+            else if (retryCount[userNumber] > 3) {
                 console.log(`❌ [${userNumber}] Reconnection limit reached. Deleting session from DB.`);
                 delete retryCount[userNumber]; 
 
@@ -363,7 +348,7 @@ async function connectToWA(sessionData) {
             }
             else {
                 const delay = Math.min(5000 * Math.pow(1.5, retryCount[userNumber]), 30000);
-                console.log(`🔄 [${userNumber}] Disconnected (Attempt ${retryCount[userNumber]}/10). Reconnecting in ${delay/1000}s...`);
+                console.log(`🔄 [${userNumber}] Disconnected (Attempt ${retryCount[userNumber]}/3). Reconnecting in ${delay/1000}s...`);
                 setTimeout(() => connectToWA(sessionData), delay);
             }
         } else if (connection === "open") {
@@ -371,27 +356,27 @@ async function connectToWA(sessionData) {
             retryCount[userNumber] = 0;
             
             if (userSettings.connectionMsg === "true") {
-                await zanta.sendMessage(decodeJid(zanta.user.id), {
+                await zeus.sendMessage(decodeJid(zeus.user.id), {
                     image: { url: "https://zeus-x-md-database.pages.dev/Data/zeus-x-main.jpeg" },
-                    caption: `${userSettings.botName} connected ✅`,
+                    caption: `╭─「 ᴢᴇᴜꜱ x ᴍɪɴɪ 」\n│ɴᴏᴡ ᴏɴʟɪɴᴇ & ᴀᴄᴛɪᴠᴇ\n│ʙᴏᴛ ɴᴀᴍᴇ: ${userSettings.botName}\n│ᴘʀᴇꜰɪx: ${userSettings.prefix || '.'}\n│ caravans ᴜꜱᴇ ${userSettings.prefix || '.'}ᴍᴇɴᴜ\n╰──────────●●►`,
                 });
             }
-            
+
             setTimeout(async () => {
                 const channels = ["120363425542933159@newsletter", "120363406265537739@newsletter"];
-                for (const jid of channels) { try { await zanta.newsletterFollow(jid); } catch (e) {} }
+                for (const jid of channels) { try { await zeus.newsletterFollow(jid); } catch (e) {} }
             }, 5000);
 
-            if (zanta.onlineInterval) clearInterval(zanta.onlineInterval);
+            if (zeus.onlineInterval) clearInterval(zeus.onlineInterval);
 
             const runPresenceLogic = async () => {
                 try {
-                    if (!zanta.ws.isOpen) return; 
+                    if (!zeus.ws.isOpen) return; 
                     const currentSet = global.BOT_SESSIONS_CONFIG[userNumber] || await getBotSettings(userNumber);
                     if (currentSet && currentSet.alwaysOnline === "true") {
-                        await zanta.sendPresenceUpdate("available");
+                        await zeus.sendPresenceUpdate("available");
                     } else {
-                        await zanta.sendPresenceUpdate("unavailable");
+                        await zeus.sendPresenceUpdate("unavailable");
                     }
                 } catch (e) {
                     console.error(`[Presence Error - ${userNumber}]:`, e.message);
@@ -399,13 +384,13 @@ async function connectToWA(sessionData) {
             };
 
             await runPresenceLogic();
-            zanta.onlineInterval = setInterval(runPresenceLogic, 30000);
+            zeus.onlineInterval = setInterval(runPresenceLogic, 30000);
         }
     });
 
-    zanta.ev.on("creds.update", saveCreds);
+    zeus.ev.on("creds.update", saveCreds);
 
-    zanta.ev.on("messages.upsert", async ({ messages }) => {
+    zeus.ev.on("messages.upsert", async ({ messages }) => {
         const mek = messages[0];
         if (!mek || !mek.message) return;
 
@@ -441,10 +426,10 @@ async function connectToWA(sessionData) {
                 const header = `🛡️ *ZEUS X ANTI-DELETE* 🛡️`;
                 const footerContext = {
                     forwardingScore: 999, isForwarded: true,
-                    forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
+                    forwardedNewsletterMessageInfo: { newsletterJid: "120363404252774256@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩𝑶𝑻𝒁 𝑰🇳🇨 </> 🇱🇰", serverMessageId: 100 }
                 };
 
-                const targetChat = userSettings.antidelete === "2" ? jidNormalizedUser(zanta.user.id) : from;
+                const targetChat = userSettings.antidelete === "2" ? jidNormalizedUser(zeus.user.id) : from;
                 const infoPrefix = userSettings.antidelete === "2" ? `👤 *Sender:* ${senderNum}\n\n` : "";
 
                 if (isImage) {
@@ -452,12 +437,12 @@ async function connectToWA(sessionData) {
                         const buffer = await downloadContentFromMessage(oldMsg.message.imageMessage, "image");
                         let chunks = Buffer.alloc(0);
                         for await (const chunk of buffer) { chunks = Buffer.concat([chunks, chunk]); }
-                        await zanta.sendMessage(targetChat, { image: chunks, caption: `${header}\n\n${infoPrefix}*Caption:* ${deletedText}`, contextInfo: footerContext });
+                        await zeus.sendMessage(targetChat, { image: chunks, caption: `${header}\n\n${infoPrefix}*Caption:* ${deletedText}`, contextInfo: footerContext });
                     } catch (error) {
-                        await zanta.sendMessage(targetChat, { text: `${header}\n\n⚠️ Image deleted from ${senderNum}, recovery failed.` });
+                        await zeus.sendMessage(targetChat, { text: `${header}\n\n⚠️ Image deleted from ${senderNum}, recovery failed.` });
                     }
                 } else {
-                    await zanta.sendMessage(targetChat, { text: `${header}\n\n${infoPrefix}*Message:* ${deletedText}`, contextInfo: footerContext });
+                    await zeus.sendMessage(targetChat, { text: `${header}\n\n${infoPrefix}*Message:* ${deletedText}`, contextInfo: footerContext });
                 }
                 delete allSavedMsgs[deletedId];
                 writeMsgs(allSavedMsgs);
@@ -469,12 +454,12 @@ async function connectToWA(sessionData) {
 
         if (from === "status@broadcast") {
             if (userSettings.autoStatusSeen === "true") {
-                await zanta.readMessages([mek.key]);
+                await zeus.readMessages([mek.key]);
             }
             if (userSettings.autoStatusReact === "true" && !mek.key.fromMe) {
                 const statusEmojis = ["💚", "❤️", "✨", "🔥"];
                 const randomEmoji = statusEmojis[Math.floor(Math.random() * statusEmojis.length)];
-                await zanta.sendMessage(from, { 
+                await zeus.sendMessage(from, { 
                     react: { text: randomEmoji, key: mek.key } 
                 }, { 
                     statusJidList: [sender] 
@@ -518,23 +503,40 @@ async function connectToWA(sessionData) {
             if (Math.random() > 0.3) {
                 const reactions = ["❤️", "👍", "🔥", "✨", "⚡"];
                 const randomEmoji = reactions[Math.floor(Math.random() * reactions.length)];
-                setTimeout(async () => { try { await zanta.sendMessage(from, { react: { text: randomEmoji, key: mek.key } }); } catch (e) {} }, Math.floor(Math.random() * 3000) + 2000);
+                setTimeout(async () => { try { await zeus.sendMessage(from, { react: { text: randomEmoji, key: mek.key } }); } catch (e) {} }, Math.floor(Math.random() * 3000) + 2000);
             }
         }
 
-        if (userSettings.workType === "private" && !isOwner) {
-            if (isCmd) {
-                await zanta.sendMessage(from, { text: `⚠️ *PRIVATE MODE ACTIVATED*`, contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 } } }, { quoted: mek });
+        const workMode = userSettings.workType ? userSettings.workType.toUpperCase() : "PUBLIC";
+
+        if (isCmd && !isOwner) {
+            if (workMode === "PRIVATE") {
+                await zeus.sendMessage(from, { 
+                    text: `⚠️ *PRIVATE MODE ACTIVATED*\n\nOnly the bot owner can use commands here.`, 
+                    contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩\u0shared𝒁  𝑰𝑵🇨 </> 🇱🇰", serverMessageId: 100 } } 
+                }, { quoted: mek });
+                return;
             }
-            return;
+            
+            if (workMode === "GROUP ONLY" && !isGroup) {
+                await zeus.sendMessage(from, { 
+                    text: `⚠️ *GROUP ONLY MODE ACTIVATED*\n\nCommands are disabled in Inbox. You can only use them inside WhatsApp Groups.`, 
+                    contextInfo: { forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩\u0shared𝒁  𝑰𝑵🇨 </> 🇱🇰", serverMessageId: 100 } } 
+                }, { quoted: mek });
+                return;
+            }
+            
+            if (workMode === "INBOX" && isGroup) {
+                return;
+            }
         }
 
-        const m = sms(zanta, mek);
+        const m = sms(zeus, mek);
         
         if (userSettings.autoReply === "true" && userSettings.autoReplies && !isCmd && !mek.key.fromMe) {
             const chatMsg = body.toLowerCase().trim();
             const foundMatch = userSettings.autoReplies.find( (ar) => ar.keyword.toLowerCase().trim() === chatMsg);
-            if (foundMatch) await zanta.sendMessage(from, { text: foundMatch.reply }, { quoted: mek });
+            if (foundMatch) await zeus.sendMessage(from, { text: foundMatch.reply }, { quoted: mek });
         }
 
         if (isGroup && !mek.key.fromMe) {
@@ -542,41 +544,41 @@ async function connectToWA(sessionData) {
             const isSecurityOn = (userSettings.badWords === "true" || userSettings.antiLink === "true" || userSettings.antiCmd === "true");
 
             if (isSecurityOn) {
-                const groupMetadata = await zanta.groupMetadata(from).catch(() => ({}));
+                const groupMetadata = await zeus.groupMetadata(from).catch(() => ({}));
                 const participants = groupMetadata.participants || [];
                 const groupAdmins = participants.filter(v => v.admin !== null).map(v => v.id);
                 const isSenderAdmin = groupAdmins.includes(sender) || isOwner;
 
                 if (!isSenderAdmin) {
-                    const botId = zanta.user.id.split(':')[0] + '@s.whatsapp.net';
+                    const botId = zeus.user.id.split(':')[0] + '@s.whatsapp.net';
                     const isBotAdmin = participants.find(p => p.id === botId)?.admin !== null;
 
                     if (isBotAdmin) {
                         const footerContext = {
                             forwardingScore: 999, isForwarded: true,
-                            forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰", serverMessageId: 100 }
+                            forwardedNewsletterMessageInfo: { newsletterJid: "120363425542933159@newsletter", newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 🇩  𝑩\u0shared𝒁  𝑰𝑵🇨 </> 🇱🇰", serverMessageId: 100 }
                         };
 
                         if (userSettings.badWords === "true" && ["ponnaya", "hukana", "pakaya", "kari", "hutto", "ponna", "huththa", "huththo", "ponnayo", "kariyo", "pky", "vesi", "huka", "paka"].some(word => text.includes(word))) {
-                            await zanta.sendMessage(from, { delete: mek.key }).catch(() => {});
-                            await zanta.sendMessage(from, { text: `🚫 *BAD WORDS DISABLED!*`, contextInfo: footerContext });
+                            await zeus.sendMessage(from, { delete: mek.key }).catch(() => {});
+                            await zeus.sendMessage(from, { text: `🚫 *BAD WORDS DISABLED!*`, contextInfo: footerContext });
                         } 
                         else if (userSettings.antiLink === "true" && ["http://", "https://", "www.", "wa.me", "t.me", "chat.whatsapp.com"].some(link => text.includes(link))) {
-                            await zanta.sendMessage(from, { delete: mek.key }).catch(() => {});
-                            await zanta.sendMessage(from, { text: `🚫 *LINKS ARE DISABLED!*`, contextInfo: footerContext });
+                            await zeus.sendMessage(from, { delete: mek.key }).catch(() => {});
+                            await zeus.sendMessage(from, { text: `🚫 *LINKS ARE DISABLED!*`, contextInfo: footerContext });
                         } 
                         else if (userSettings.antiCmd === "true" && [".", "/", "!", "#", userSettings.prefix].some(p => text.startsWith(p))) {
                             if (!global.cmdWarning) global.cmdWarning = {};
                             global.cmdWarning[sender] = (global.cmdWarning[sender] || 0) + 1;
                             let count = global.cmdWarning[sender];
 
-                            await zanta.sendMessage(from, { delete: mek.key }).catch(() => {});
+                            await zeus.sendMessage(from, { delete: mek.key }).catch(() => {});
                             if (count >= 5) {
-                                await zanta.sendMessage(from, { text: `🚫 *LIMIT EXCEEDED!* @${sender.split('@')[0]} removed for using commands.`, mentions: [sender], contextInfo: footerContext });
-                                await zanta.groupParticipantsUpdate(from, [sender], "remove").catch(() => {});
+                                await zeus.sendMessage(from, { text: `🚫 *LIMIT EXCEEDED!* @${sender.split('@')[0]} removed for using commands.`, mentions: [sender], contextInfo: footerContext });
+                                await zeus.groupParticipantsUpdate(from, [sender], "remove").catch(() => {});
                                 global.cmdWarning[sender] = 0;
                             } else {
-                                await zanta.sendMessage(from, { text: `⚠️ *COMMANDS DISABLED!* \n\n👤 *User:* @${sender.split('@')[0]}\n🚫 *Warning:* ${count}/5`, mentions: [sender], contextInfo: footerContext });
+                                await zeus.sendMessage(from, { text: `⚠️ *COMMANDS DISABLED!* \n\n👤 *User:* @${sender.split('@')[0]}\n🚫 *Warning:* ${count}/5`, mentions: [sender], contextInfo: footerContext });
                             }
                         } 
                     }
@@ -614,11 +616,12 @@ async function connectToWA(sessionData) {
             if (audioUrl) {
                 try {
                     const response = await axios.get(audioUrl, { responseType: 'arraybuffer' });
-                    const buffer = Buffer.from(response.data, 'utf-8');
-                    await zanta.sendMessage(from, { 
+                    // FIXED: Binary ඩේටා 'utf-8' එන්කෝඩින් එක නැතුව හරියටම buffer එකට ගත්තා
+                    const buffer = Buffer.from(response.data);
+                    await zeus.sendMessage(from, { 
                         audio: buffer, 
                         mimetype: 'audio/mpeg', 
-                        ptt: false,  
+                        ptt: true,  
                         fileName: 'ZEUS-Audio.mp3'
                     }, { quoted: mek });
                 } catch (e) {
@@ -638,13 +641,13 @@ async function connectToWA(sessionData) {
 
         const args = isButton ? [body] : body.trim().split(/ +/).slice(1);
 
-        if (userSettings.autoRead === "true") await zanta.readMessages([mek.key]);
-        if (userSettings.autoTyping === "true") await zanta.sendPresenceUpdate("composing", from);
-        if (userSettings.autoVoice === "true" && !mek.key.fromMe) await zanta.sendPresenceUpdate("recording", from);
+        if (userSettings.autoRead === "true") await zeus.readMessages([mek.key]);
+        if (userSettings.autoTyping === "true") await zeus.sendPresenceUpdate("composing", from);
+        if (userSettings.autoVoice === "true" && !mek.key.fromMe) await zeus.sendPresenceUpdate("recording", from);
 
         const reply = async (text) => {
             await sleep(2000);
-            return await zanta.sendMessage(from, { text }, { quoted: mek });
+            return await zeus.sendMessage(from, { text }, { quoted: mek });
         };
 
         const isSettingsReply = m.quoted && lastSettingsMessage?.get(from) === m.quoted.id;
@@ -656,6 +659,7 @@ async function connectToWA(sessionData) {
         const allowedNumbers = ["94774571418", "94743404814", "94766247995", "192063001874499", "270819766866076"];
         const isAllowedUser = allowedNumbers.includes(senderNumber) || isOwner;
 
+        // --- 1. ANTI-DELETE SUB-MENU REPLY ---
         if (isAntiDeleteChoice && body && !isCmd && isAllowedUser) {
             let choice = body.trim().split(" ")[0];
             let finalVal = choice === "1" ? "false" : choice === "2" ? "1" : choice === "3" ? "2" : null;
@@ -667,18 +671,26 @@ async function connectToWA(sessionData) {
             return reply(`✅ *ANTI-DELETE MODE UPDATED*\n\n` + (finalVal === "false" ? "🚫 Off" : finalVal === "1" ? "📩 Send to User Chat" : "👤 Send to Your Chat"));
         }
 
+        // --- 2. WORK TYPE SUB-MENU REPLY ---
         if (isWorkTypeChoice && body && !isCmd && isAllowedUser) {
             let choice = body.trim().split(" ")[0];
-            let finalValue = choice === "1" ? "public" : choice === "2" ? "private" : null;
+            let finalValue = choice === "1" ? "PUBLIC" : 
+                             choice === "2" ? "PRIVATE" : 
+                             choice === "3" ? "GROUP ONLY" : 
+                             choice === "4" ? "INBOX" : null;
+
             if (finalValue) {
                 await updateSetting(userNumber, "workType", finalValue);
                 userSettings.workType = finalValue;
                 global.BOT_SESSIONS_CONFIG[userNumber] = userSettings;
                 lastWorkTypeMessage.delete(from);
-                return reply(`✅ *WORK_TYPE* updated to: *${finalValue.toUpperCase()}*`);
-            } else return reply("⚠️ වැරදි අංකයක්. 1 හෝ 2 ලෙස රිප්ලයි කරන්න.");
+                return reply(`✅ *WORK TYPE UPDATED*\n\nBot mode successfully set to: *${finalValue}*`);
+            } else {
+                return reply("⚠️ වැරදි අංකයක්. කරුණාකර 1, 2, 3 හෝ 4 ලෙස reply කරන්න.");
+            }
         }
 
+        // --- 3. SECURITY SUB-MENU REPLY ---
         const isSecurityReply = m.quoted && lastSecurityMessage?.get(from) === m.quoted.id;
         if (isSecurityReply && body && !isCmd && isAllowedUser) {
             const input = body.trim().split(" ");
@@ -696,49 +708,54 @@ async function connectToWA(sessionData) {
             }
         }
 
+        // --- 4. MAIN SETTINGS MENU REPLY ---
         if (isSettingsReply && body && !isCmd && isAllowedUser) {
             const input = body.trim().split(" ");
             let index = parseInt(input[0]);
             let dbKeys = ["", "botName", "ownerName", "prefix", "workType", "password", "botImage", "alwaysOnline", "autoRead", "autoTyping", "autoStatusSeen", "autoStatusReact", "readCmd", "autoVoice", "autoReply", "connectionMsg", "buttons", "autoVoiceReply", "antidelete", "autoReact", "badWords", "antiLink", "antiCmd"];
             let dbKey = dbKeys[index];
 
-            if (index === 20) {
-                const secMsg = `🛡️ *ZEUS X GROUP SECURITY* 🛡️\n\n1️⃣ Anti-BadWords: ${userSettings.badWords === "true" ? "✅ ON" : "❌ OFF"}\n2️⃣ Anti-Link: ${userSettings.antiLink === "true" ? "✅ ON" : "❌ OFF"}\n3️⃣ Anti-Command: ${userSettings.antiCmd === "true" ? "✅ ON" : "❌ OFF"}\n\n*💡 How to change:*\nReply with *Number + on/off*\nEx: *1 on*\n\n> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰*`;
-                const sentSec = await reply(secMsg);
-                lastSecurityMessage.set(from, sentSec.key.id);
-                return;
-            }
-
             if (dbKey) {
-                if (index === 6) {
-                    const isPaidUser = userSettings && userSettings.paymentStatus === "paid";
-                    if (!isAllowedUser && !isPaidUser) return reply(`🚫 *PREMIUM FEATURE*\n\nPremium users only\n\n> Contact owner:+94774571418`);
-                    if (!input[1] || !input[1].includes("files.catbox.moe")) return reply(`⚠️ *CATBOX LINK ONLY*\n\nකරුණාකර https://catbox.moe/ වෙත upload කර ලැබෙන 'files.catbox.moe' ලින්ක් එක ලබා දෙන්න.`);
+                if (index === 20) {
+                    const secMsg = `🛡️ *ZEUS X GROUP SECURITY* 🛡️\n\n1️⃣ Anti-BadWords: ${userSettings.badWords === "true" ? "✅ ON" : "❌ OFF"}\n2️⃣ Anti-Link: ${userSettings.antiLink === "true" ? "✅ ON" : "❌ OFF"}\n3️⃣ Anti-Command: ${userSettings.antiCmd === "true" ? "✅ ON" : "❌ OFF"}\n\n*💡 How to change:*\nReply with *Number + on/off*\nEx: *1 on*\n\n> *_𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_ 🇱🇰*`;
+                    const sentSec = await reply(secMsg);
+                    lastSecurityMessage.set(from, sentSec.key.id);
+                    return;
                 }
+
                 if (index === 18) { 
                     const antiMsg = await reply(`🛡️ *SELECT ANTI-DELETE MODE*\n\n1️⃣ Off\n2️⃣ Send to User Chat\n3️⃣ Send to Your Chat\n\n*Reply only the number*`);
                     lastAntiDeleteMessage.set(from, antiMsg.key.id); 
                     return;
                 }
+
                 if (index === 4) {
-                    const workMsg = await reply("🛠️ *SELECT WORK MODE*\n\n1️⃣ *Public*\n2️⃣ *Private*");
+                    const workMsg = await reply("🛠️ *SELECT WORK MODE*\n\n1️⃣ *Public*\n2️⃣ *Private*\n3️⃣ *Group Only*\n4️⃣ *Inbox*");
                     lastWorkTypeMessage.set(from, workMsg.key.id); 
                     return;
                 }
+
+                if (index === 6) {
+                    const isPaidUser = userSettings && userSettings.paymentStatus === "paid";
+                    if (!isAllowedUser && !isPaidUser) return reply(`🚫 *PREMIUM FEATURE*\n\nPremium users only\n\n> Contact owner: +94774571418`);
+                    if (!input[1] || !input[1].includes("files.catbox.moe")) return reply(`⚠️ *CATBOX LINK ONLY*\n\nකරුණාකර https://catbox.moe/ වෙත upload කර ලැබෙන 'files.catbox.moe' ලින්ක් එක ලබා දෙන්න.`);
+                }
+
                 if (index === 14 && input.length === 1) {
-                    return reply(`📝 *ZEUS X AUTO REPLY SETTINGS*\n\n🔗 *Link:* comming soon\n\n*Status:* ${userSettings.autoReply === "true" ? "✅ ON" : "❌ OFF"}`);
+                    return reply(`📝 *ZEUS X AUTO REPLY SETTINGS*\n\n🔗 *Link:* coming soon\n\n*Status:* ${userSettings.autoReply === "true" ? "✅ ON" : "❌ OFF"}`);
                 }
 
                 if (index >= 7 && !input[1]) return reply(`⚠️ කරුණාකර අගය ලෙස 'on' හෝ 'off' ලබා දෙන්න.`);
-                if (index < 7 && input.length < 2 && index !== 4 && index !== 17) return reply(`⚠️ කරුණාකර අගයක් ලබා දෙන්න.`);
+                if (index < 7 && input.length < 2 && index !== 17) return reply(`⚠️ කරුණාකර අගයක් ලබා දෙන්න.`);
                 
                 let finalValue = index >= 7 ? (input[1].toLowerCase() === "on" ? "true" : "false") : input.slice(1).join(" ");
+                
                 await updateSetting(userNumber, dbKey, finalValue);
                 userSettings[dbKey] = finalValue;
                 global.BOT_SESSIONS_CONFIG[userNumber] = userSettings;
 
                 if (dbKey === "alwaysOnline") {
-                    await zanta.sendPresenceUpdate(finalValue === "true" ? "available" : "unavailable");
+                    await zeus.sendPresenceUpdate(finalValue === "true" ? "available" : "unavailable", from);
                 }
 
                 const successMsg = dbKey === "password" 
@@ -758,17 +775,17 @@ async function connectToWA(sessionData) {
                 let groupMetadata = {}, participants = [], groupAdmins = [], isAdmins = false, isBotAdmins = false;
                 if (isGroup) {
                     try {
-                        groupMetadata = await zanta.groupMetadata(from).catch(() => ({}));
+                        groupMetadata = await zeus.groupMetadata(from).catch(() => ({}));
                         participants = groupMetadata.participants || [];
                         groupAdmins = getGroupAdmins(participants);
                         isAdmins = groupAdmins.map(v => decodeJid(v)).includes(decodeJid(sender));
-                        isBotAdmins = groupAdmins.map(v => decodeJid(v)).includes(decodeJid(zanta.user.id));
+                        isBotAdmins = groupAdmins.map(v => decodeJid(v)).includes(decodeJid(zeus.user.id));
                     } catch (e) {}
                 }
-                if (userSettings.readCmd === "true") await zanta.readMessages([mek.key]);
-                if (cmd.react && !isButton) zanta.sendMessage(from, { react: { text: cmd.react, key: mek.key } });
+                if (userSettings.readCmd === "true") await zeus.readMessages([mek.key]);
+                if (cmd.react && !isButton) zeus.sendMessage(from, { react: { text: cmd.react, key: mek.key } });
 
-                try { await cmd.function(zanta, mek, m, {from,body,isCmd,command: execName,args: execArgs,q: execArgs.join(" "),isGroup,sender,senderNumber,isOwner,reply,prefix,userSettings,groupMetadata,participants,groupAdmins,isAdmins,isBotAdmins}); } 
+                try { await cmd.function(zeus, mek, m, {from,body,isCmd,command: execName,args: execArgs,q: execArgs.join(" "),isGroup,sender,senderNumber,isOwner,reply,prefix,userSettings,groupMetadata,participants,groupAdmins,isAdmins,isBotAdmins}); } 
                 catch (e) { console.error(e); }
                 if (global.gc) global.gc();
             }
