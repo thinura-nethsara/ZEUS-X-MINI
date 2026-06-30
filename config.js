@@ -11,7 +11,7 @@ module.exports = {
 
     // 🤖 Default Fallback Settings
     DEFAULT_BOT_NAME: process.env.DEFAULT_BOT_NAME || "ZEUS-X-MINI",
-    DEFAULT_OWNER_NAME: process.env.DEFAULT_OWNER_NAME || "Mr ThinUzz",
+    DEFAULT_OWNER_NAME: process.env.DEFAULT_OWNER_NAME || "ZEUS X INC",
     DEFAULT_PREFIX: process.env.DEFAULT_PREFIX || ".",
 
     // 🖼️ Media Settings (Alive image & Menu)
