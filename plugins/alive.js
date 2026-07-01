@@ -37,7 +37,6 @@ function getAliveMessage(botInfo = {}) {
 
     const prefix = botInfo.prefix || config.DEFAULT_PREFIX || '/';
 
-    // 🆕 නව Design
     return `
 ╭━〔 ${botInfo.botName || 'ZEUS X MD'} 〕
 |   *${greeting}*
@@ -74,7 +73,7 @@ async function preLoadAliveImage() {
 preLoadAliveImage();
 
 // ============================================
-// 🟢 ALIVE COMMAND
+// 🟢 ALIVE COMMAND - WITHOUT LIST BUTTONS
 // ============================================
 cmd({
     pattern: "alive",
@@ -83,7 +82,7 @@ cmd({
     category: "main",
     filename: __filename
 },
-async (zanta, mek, m, { from, reply, userSettings }) => {
+async (zeus, mek, m, { from, reply, userSettings }) => {
     try {
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI";
@@ -103,7 +102,7 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
             const vResponse = await axios.get(aliveVoiceUrl, { responseType: 'arraybuffer' });
             const vBuffer = Buffer.from(vResponse.data, 'utf-8');
 
-            await zanta.sendMessage(from, {
+            await zeus.sendMessage(from, {
                 audio: vBuffer,
                 mimetype: 'audio/mpeg',
                 ptt: false,
@@ -121,15 +120,35 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
             imageToDisplay = cachedAliveImage || { url: config.ALIVE_IMG };
         }
 
+        // ============================================
+        // 🆕 BUTTON SYSTEM WITHOUT LIST - USING SEPARATE BUTTONS
+        // ============================================
         if (isButtonsOn) {
-            return await zanta.sendMessage(from, {
+            // Send image with buttons (without list)
+            const buttonMessage = {
                 image: imageToDisplay,
                 caption: finalMsg,
                 buttons: [
-                    { buttonId: prefix + "ping", buttonText: { displayText: "ᴘɪɴɢ" }, type: 1 },
-                    { buttonId: prefix + "menu", buttonText: { displayText: "ᴍᴇɴᴜ" }, type: 1 },
-                    { buttonId: prefix + "settings", buttonText: { displayText: "sᴇᴛᴛɪɴɢs" }, type: 1 },
-                    { buttonId: prefix + "help", buttonText: { displayText: "ʜᴇʟᴘᴍᴇ" }, type: 1 }
+                    {
+                        buttonId: `${prefix}ping`,
+                        buttonText: { displayText: "📡 ᴘɪɴɢ" },
+                        type: 1
+                    },
+                    {
+                        buttonId: `${prefix}menu`,
+                        buttonText: { displayText: "📋 ᴍᴇɴᴜ" },
+                        type: 1
+                    },
+                    {
+                        buttonId: `${prefix}settings`,
+                        buttonText: { displayText: "⚙️ sᴇᴛᴛɪɴɢs" },
+                        type: 1
+                    },
+                    {
+                        buttonId: `${prefix}help`,
+                        buttonText: { displayText: "❓ ʜᴇʟᴘ" },
+                        type: 1
+                    }
                 ],
                 headerType: 4,
                 contextInfo: {
@@ -141,9 +160,12 @@ async (zanta, mek, m, { from, reply, userSettings }) => {
                         newsletterName: "𝒁 𝑬 𝑼 𝑺  𝑿 𝑴 𝑫  𝑩𝑶𝑻𝒁 𝑰𝑵𝑪 </> 🇱🇰"
                     }
                 }
-            }, { quoted: mek });
+            };
+
+            return await zeus.sendMessage(from, buttonMessage, { quoted: mek });
         } else {
-            return await zanta.sendMessage(from, {
+            // Send image without buttons
+            return await zeus.sendMessage(from, {
                 image: imageToDisplay,
                 caption: finalMsg,
                 contextInfo: {
