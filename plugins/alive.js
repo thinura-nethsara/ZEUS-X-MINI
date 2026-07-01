@@ -40,16 +40,18 @@ function getAliveMessage(botInfo = {}) {
     return `
 ╭━〔 ${botInfo.botName || 'ZEUS X MD'} 〕
 |   *${greeting}*
-|   *DATE*: ${date}
-|   *TIME* : ${time}
-|   *UPTIME* : ${uptimeStr}
-|   *PREFIX* : ${prefix}
-╰━━━━━━━━━━━━━━━━━━━✦
+╰──────────●●►
 
-╭━〔 HELP ME 〕
-| Use This Command
-|  ${prefix}menu 
-╰━━━━━━━━━━━━━━━━━━━✦
+╭─「 ᴅᴀᴛᴇ 」
+│📅 Date: ${date}
+│⏰ Time: ${time}
+╰──────────●●►
+
+╭─「 ꜱᴛᴀᴛᴜꜱ ᴅᴇᴛᴀɪʟꜱ 」
+│✒️ Prefix: ${prefix}
+│🧬 Version: 1.0.0
+│📟 Uptime: ${uptimeStr}
+╰──────────●●►
 
 > _𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐙𝐄𝐔𝐒 𝐈𝐍𝐂 </>_`;
 }
