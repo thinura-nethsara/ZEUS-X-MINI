@@ -30,12 +30,12 @@ cmd({
     category: "main",
     filename: __filename,
 },
-async (zanta, mek, m, { from, reply, args, userSettings }) => {
+async (zeus, mek, m, { from, reply, args, userSettings }) => {
     try {
         const settings = userSettings || global.CURRENT_BOT_SETTINGS || {};
         const finalPrefix = settings.prefix || config.DEFAULT_PREFIX || '.'; 
-        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS-X-MINI"; 
-        const ownerName = settings.ownerName || config.DEFAULT_OWNER_NAME || 'Mr ThinUzz';
+        const botName = settings.botName || config.DEFAULT_BOT_NAME || "ZEUS X MINI"; 
+        const ownerName = settings.ownerName || config.DEFAULT_OWNER_NAME || 'ZEUS X INC';
         const mode = (settings.workType || "Public").toUpperCase();
         const isButtonsOn = settings.buttons === 'true';
 
@@ -51,7 +51,8 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
         }
 
         const groupedCommands = {};
-        const customOrder = ["main", "download", "tools", "logo", "media"];
+        // Original customOrder එකට අලුත් කාණ්ඩ එකතු කරනවා පමණයි
+        const customOrder = ["main", "download", "tools", "logo", "media", "group", "owner", "adult", "movie"];
 
         commands.filter(c => c.pattern && c.pattern !== "menu").forEach(cmdData => {
             let cat = cmdData.category?.toLowerCase() || "other";
@@ -87,21 +88,32 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
 
         if (selectedCategory && groupedCommands[selectedCategory]) {
             let displayTitle = selectedCategory.toUpperCase();
-            let emoji = { ᴍᴀɪɴ: '🏠', ᴅᴏᴡɴʟᴏᴀᴅꜱ: '📥', ᴛᴏᴏʟꜱ: '🛠', ʟᴏɢᴏ: '🎨', ᴍᴇᴅɪᴀ: '🖼' }[selectedCategory.toLowerCase()] || '📌';
+            // Original emoji mapping එකට අලුත් කාණ්ඩ සඳහා emoji එකතු කරනවා පමණයි
+            let emoji = { 
+                ᴍᴀɪɴ: '🏠', 
+                ᴅᴏᴡɴʟᴏᴀᴅꜱ: '📥', 
+                ᴛᴏᴏʟꜱ: '🛠', 
+                ʟᴏɢᴏ: '🎨', 
+                ᴍᴇᴅɪᴀ: '🖼',
+                ɢʀᴏᴜᴘ: '👥',
+                ᴏᴡɴᴇʀ: '👑',
+                ᴀᴅᴜʟᴛ: '🔞',
+                ᴍᴏᴠɪᴇ: '🎬'
+            }[selectedCategory.toLowerCase()] || '📌';
 
-            let commandList = `╭━━〔 ${emoji} ${displayTitle} 〕\n`;
-            commandList += `┃ 📝 𝘊ᴀᴛᴇɢᴏʀʏ : ${displayTitle}\n┃ 📊 𝘈ᴠᴀɪʟᴀʙʟᴇ : ${groupedCommands[selectedCategory].length}\n╰━━━━━━━━━━━━━━━━━━━✦\n\n`;
-
+            let commandList = `╭─「 ${emoji} ${displayTitle} 」\n`;
+            commandList += `| 📝 𝘊ᴀᴛᴇɢᴏʀʏ : ${displayTitle}\n| 📊 𝘈ᴠᴀɪʟᴀʙʟᴇ : ${groupedCommands[selectedCategory].length}\n╰──────────────────●●►\n\n`;
+                                                                                                                            
             groupedCommands[selectedCategory].forEach((c) => {
-                commandList += `┃ ❃ ${finalPrefix}${c.pattern}\n`;
+                commandList += `| ❃ ${finalPrefix}${c.pattern}\n`;
             });
-            commandList += `╰━━━━━━━━━━━━━━━━━━━✦`;
+            commandList += `╰──────────────────●●►`;
 
-            return await zanta.sendMessage(from, { text: commandList, contextInfo }, { quoted: mek }); 
+            return await zeus.sendMessage(from, { text: commandList, contextInfo }, { quoted: mek }); 
         }
-
-        let headerText = `╭━〔 ZEUS X MINI 〕━··๏\n`;
-        headerText += `┃ 👑 Oᴡɴᴇʀ : ${ownerName}\n┃ ⚙ Mᴏᴅᴇ : ${mode}\n┃ 🔣 Pʀᴇꜰɪx : ${finalPrefix}\n┃ 📚 Cᴏᴍᴍᴀɴᴅꜱ : ${commands.length}\n╰━━━━━━━━━━━━━━━━━━━✦\n\n`;
+                                            
+        let headerText = `╭─「 ${botName} 」─●●►\n`;
+        headerText += `┃ 👑 Oᴡɴᴇʀ : ${ownerName}\n| ⚙ Mᴏᴅᴇ : ${mode}\n| 🔣 Pʀᴇꜰɪx : ${finalPrefix}\n| 📚 Cᴏᴍᴍᴀɴᴅꜱ : ${commands.length}\n╰──────────────────●●►\n\n`;
 
         // --- 🖼️ IMAGE LOGIC: DB Image එක ඇත්නම් එය පෙන්වයි, නැතිනම් Default Cache Image එක පෙන්වයි ---
         let imageToDisplay;
@@ -112,7 +124,8 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
         }
 
         if (isButtonsOn) {
-            return await zanta.sendMessage(from, {
+            // Original buttons එකට අලුත් කාණ්ඩ සඳහා buttons එකතු කරනවා පමණයි
+            return await zeus.sendMessage(from, {
                 image: imageToDisplay,
                 caption: headerText + "ꜱᴇʟᴇᴄᴛ 👇",
                 footer: `© Zᴇᴜꜱ X ᴍᴅ Mɪɴɪ •`,
@@ -121,21 +134,36 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
                     { buttonId: "cat_download", buttonText: { displayText: "📥 ᴅᴏᴡɴʟᴏᴀᴅꜱ" }, type: 1 },
                     { buttonId: "cat_tools", buttonText: { displayText: "🛠 ᴛᴏᴏʟꜱ" }, type: 1 },
                     { buttonId: "cat_logo", buttonText: { displayText: "🎨 ʟᴏɢᴏ" }, type: 1 },
-                    { buttonId: "cat_media", buttonText: { displayText: "🖼 ᴍᴇᴅɪᴀ" }, type: 1 }
+                    { buttonId: "cat_media", buttonText: { displayText: "🖼 ᴍᴇᴅɪᴀ" }, type: 1 },
+                    { buttonId: "cat_group", buttonText: { displayText: "👥 ɢʀᴏᴜᴘ" }, type: 1 },
+                    { buttonId: "cat_owner", buttonText: { displayText: "👑 ᴏᴡɴᴇʀ" }, type: 1 },
+                    { buttonId: "cat_adult", buttonText: { displayText: "🔞 ᴀᴅᴜʟᴛ" }, type: 1 },
+                    { buttonId: "cat_movie", buttonText: { displayText: "🎬 ᴍᴏᴠɪᴇ" }, type: 1 }
                 ],
                 headerType: 4,
                 contextInfo
             }, { quoted: mek });
         } else {
-            let menuText = headerText + `╭━━〔 📜 Mᴇɴᴜ Lɪꜱᴛ 〕\n`;
+            let menuText = headerText + `╭─「 📜 Mᴇɴᴜ Lɪꜱᴛ 」\n`;
             categoryKeys.forEach((catKey, index) => {
                 let title = catKey.toUpperCase();
-                let emoji = { ᴍᴀɪɴ: '🏠', ᴅᴏᴡɴʟᴏᴀᴅꜱ: '📥', ᴛᴏᴏʟꜱ: '🛠', ʟᴏɢᴏ: '🎨', ᴍᴇᴅɪᴀ: '🖼' }[catKey] || '📌';
+                // Original emoji mapping එකට අලුත් කාණ්ඩ සඳහා emoji එකතු කරනවා පමණයි
+                let emoji = { 
+                    ᴍᴀɪɴ: '🏠', 
+                    ᴅᴏᴡɴʟᴏᴀᴅꜱ: '📥', 
+                    ᴛᴏᴏʟꜱ: '🛠', 
+                    ʟᴏɢᴏ: '🎨', 
+                    ᴍᴇᴅɪᴀ: '🖼',
+                    ɢʀᴏᴜᴘ: '👥',
+                    ᴏᴡɴᴇʀ: '👑',
+                    ᴀᴅᴜʟᴛ: '🔞',
+                    ᴍᴏᴠɪᴇ: '🎬'
+                }[catKey] || '📌';
                 menuText += `┃ ${index + 1}. ${emoji} ${title} (${groupedCommands[catKey].length})\n`;
             });
-            menuText += `╰━━━━━━━━━━━━━━━━━━━✦\n\n_💡 Reply with number to select._`;
+            menuText += `╰──────────────────●●►\n\n_💡 Reply with number to select._`;
 
-            const sent = await zanta.sendMessage(from, {
+            const sent = await zeus.sendMessage(from, {
                 image: imageToDisplay,
                 caption: menuText,
                 contextInfo
@@ -152,5 +180,3 @@ async (zanta, mek, m, { from, reply, args, userSettings }) => {
 });
 
 module.exports = { lastMenuMessage };
-
-
