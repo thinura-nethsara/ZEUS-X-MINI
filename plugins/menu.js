@@ -51,11 +51,10 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
         }
 
         const groupedCommands = {};
-        // Original customOrder එකට අලුත් කාණ්ඩ එකතු කරනවා පමණයි
-        const customOrder = ["main", "download", "tools", "logo", "media", "group", "owner", "adult", "movie"];
+        const customOrder = ["main", "download", "tools", "logo", "media", "group", "owner", "adult", "movie", "misc"];
 
         commands.filter(c => c.pattern && c.pattern !== "menu").forEach(cmdData => {
-            let cat = cmdData.category?.toLowerCase() || "other";
+            let cat = cmdData.category?.toLowerCase() || "misc";
             if (!groupedCommands[cat]) groupedCommands[cat] = [];
             groupedCommands[cat].push(cmdData);
         });
@@ -86,23 +85,28 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
             }
         };
 
+        // --- 📌 EMOJI MAPPING (LowerCase Keys) ---
+        const categoryEmojis = { 
+            'main': '🏠', 
+            'download': '📥', 
+            'tools': '🛠', 
+            'logo': '🎨', 
+            'media': '🖼',
+            'group': '👥',
+            'owner': '👑',
+            'adult': '🔞',
+            'movie': '🎬',
+            'misc': '📌'
+        };
+
         if (selectedCategory && groupedCommands[selectedCategory]) {
             let displayTitle = selectedCategory.toUpperCase();
-            // Original emoji mapping එකට අලුත් කාණ්ඩ සඳහා emoji එකතු කරනවා පමණයි
-            let emoji = { 
-                ᴍᴀɪɴ: '🏠', 
-                ᴅᴏᴡɴʟᴏᴀᴅꜱ: '📥', 
-                ᴛᴏᴏʟꜱ: '🛠', 
-                ʟᴏɢᴏ: '🎨', 
-                ᴍᴇᴅɪᴀ: '🖼',
-                ɢʀᴏᴜᴘ: '👥',
-                ᴏᴡɴᴇʀ: '👑',
-                ᴀᴅᴜʟᴛ: '🔞',
-                ᴍᴏᴠɪᴇ: '🎬'
-            }[selectedCategory.toLowerCase()] || '📌';
+            let emoji = categoryEmojis[selectedCategory] || '📌';
 
             let commandList = `╭─「 ${emoji} ${displayTitle} 」\n`;
-            commandList += `| 📝 𝘊ᴀᴛᴇɢᴏʀʏ : ${displayTitle}\n| 📊 𝘈ᴠᴀɪʟᴀʙʟᴇ : ${groupedCommands[selectedCategory].length}\n╰──────────────────●●►\n\n`;
+            commandList += `| 📝 𝘊ᴀᴛᴇɢᴏʀʏ : ${displayTitle}\n`;
+            commandList += `| 📊 𝘈𝘷𝘢𝘪𝘭𝘢𝘣𝘭𝘦 : ${groupedCommands[selectedCategory].length}\n`;
+            commandList += `╰──────────────────●●►\n\n`;
                                                                                                                             
             groupedCommands[selectedCategory].forEach((c) => {
                 commandList += `| ❃ ${finalPrefix}${c.pattern}\n`;
@@ -113,9 +117,13 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
         }
                                             
         let headerText = `╭─「 ${botName} 」─●●►\n`;
-        headerText += `┃ 👑 Oᴡɴᴇʀ : ${ownerName}\n| ⚙ Mᴏᴅᴇ : ${mode}\n| 🔣 Pʀᴇꜰɪx : ${finalPrefix}\n| 📚 Cᴏᴍᴍᴀɴᴅꜱ : ${commands.length}\n╰──────────────────●●►\n\n`;
+        headerText += `┃ 👑 Oᴡɴᴇʀ : ${ownerName}\n`;
+        headerText += `| ⚙ Mᴏᴅᴇ : ${mode}\n`;
+        headerText += `| 🔣 Pʀᴇꜰɪx : ${finalPrefix}\n`;
+        headerText += `| 📚 Cᴏᴍᴍᴀɴᴅꜱ : ${commands.length}\n`;
+        headerText += `╰──────────────────●●►\n\n`;
 
-        // --- 🖼️ IMAGE LOGIC: DB Image එක ඇත්නම් එය පෙන්වයි, නැතිනම් Default Cache Image එක පෙන්වයි ---
+        // --- 🖼️ IMAGE LOGIC ---
         let imageToDisplay;
         if (settings.botImage && settings.botImage !== "null" && settings.botImage.startsWith("http")) {
             imageToDisplay = { url: settings.botImage };
@@ -124,7 +132,7 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
         }
 
         if (isButtonsOn) {
-            // Original buttons එකට අලුත් කාණ්ඩ සඳහා buttons එකතු කරනවා පමණයි
+            // --- 📌 BUTTONS WITH CORRECT EMOJIS ---
             return await zeus.sendMessage(from, {
                 image: imageToDisplay,
                 caption: headerText + "ꜱᴇʟᴇᴄᴛ 👇",
@@ -138,7 +146,8 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
                     { buttonId: "cat_group", buttonText: { displayText: "👥 ɢʀᴏᴜᴘ" }, type: 1 },
                     { buttonId: "cat_owner", buttonText: { displayText: "👑 ᴏᴡɴᴇʀ" }, type: 1 },
                     { buttonId: "cat_adult", buttonText: { displayText: "🔞 ᴀᴅᴜʟᴛ" }, type: 1 },
-                    { buttonId: "cat_movie", buttonText: { displayText: "🎬 ᴍᴏᴠɪᴇ" }, type: 1 }
+                    { buttonId: "cat_movie", buttonText: { displayText: "🎬 ᴍᴏᴠɪᴇ" }, type: 1 },
+                    { buttonId: "cat_misc", buttonText: { displayText: "📌 ᴍɪꜱᴄ" }, type: 1 }
                 ],
                 headerType: 4,
                 contextInfo
@@ -147,18 +156,7 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
             let menuText = headerText + `╭─「 📜 Mᴇɴᴜ Lɪꜱᴛ 」\n`;
             categoryKeys.forEach((catKey, index) => {
                 let title = catKey.toUpperCase();
-                // Original emoji mapping එකට අලුත් කාණ්ඩ සඳහා emoji එකතු කරනවා පමණයි
-                let emoji = { 
-                    ᴍᴀɪɴ: '🏠', 
-                    ᴅᴏᴡɴʟᴏᴀᴅꜱ: '📥', 
-                    ᴛᴏᴏʟꜱ: '🛠', 
-                    ʟᴏɢᴏ: '🎨', 
-                    ᴍᴇᴅɪᴀ: '🖼',
-                    ɢʀᴏᴜᴘ: '👥',
-                    ᴏᴡɴᴇʀ: '👑',
-                    ᴀᴅᴜʟᴛ: '🔞',
-                    ᴍᴏᴠɪᴇ: '🎬'
-                }[catKey] || '📌';
+                let emoji = categoryEmojis[catKey] || '📌';
                 menuText += `┃ ${index + 1}. ${emoji} ${title} (${groupedCommands[catKey].length})\n`;
             });
             menuText += `╰──────────────────●●►\n\n_💡 Reply with number to select._`;
