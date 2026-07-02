@@ -103,13 +103,14 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
             let displayTitle = selectedCategory.toUpperCase();
             let emoji = categoryEmojis[selectedCategory] || '📌';
 
-            let commandList = `╭─「 ${emoji} ${displayTitle} 」\n`;
-            commandList += `| 📝 𝘊ᴀᴛᴇɢᴏʀʏ : ${displayTitle}\n`;
-            commandList += `| 📊 𝘈𝘷𝘢𝘪𝘭𝘢𝘣𝘭𝘦 : ${groupedCommands[selectedCategory].length}\n`;
+            let commandList = `
+                            ╭─「 ${emoji} ${displayTitle} 」\n`;
+            commandList += `|  📝 𝘊ᴀᴛᴇɢᴏʀʏ : ${displayTitle}\n`;
+            commandList += `|  📊 𝘈𝘷𝘢𝘪𝘭𝘢𝘣𝘭𝘦 : ${groupedCommands[selectedCategory].length}\n`;
             commandList += `╰──────────────────●●►\n\n`;
                                                                                                                             
             groupedCommands[selectedCategory].forEach((c) => {
-                commandList += `| ❃ ${finalPrefix}${c.pattern}\n`;
+                commandList += `| ➤ ${finalPrefix}${c.pattern}\n`;
             });
             commandList += `╰──────────────────●●►`;
 
@@ -136,7 +137,7 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
             return await zeus.sendMessage(from, {
                 image: imageToDisplay,
                 caption: headerText + "ꜱᴇʟᴇᴄᴛ 👇",
-                footer: `© Zᴇᴜꜱ X ᴍᴅ Mɪɴɪ •`,
+                footer: `${botName}`,
                 buttons: [
                     { buttonId: "cat_main", buttonText: { displayText: "🏠 ᴍᴀɪɴ" }, type: 1 },
                     { buttonId: "cat_download", buttonText: { displayText: "📥 ᴅᴏᴡɴʟᴏᴀᴅꜱ" }, type: 1 },
@@ -157,7 +158,7 @@ async (zeus, mek, m, { from, reply, args, userSettings }) => {
             categoryKeys.forEach((catKey, index) => {
                 let title = catKey.toUpperCase();
                 let emoji = categoryEmojis[catKey] || '📌';
-                menuText += `┃ ${index + 1}. ${emoji} ${title} (${groupedCommands[catKey].length})\n`;
+                menuText += `| ${index + 1}. ${emoji} ${title} (${groupedCommands[catKey].length})\n`;
             });
             menuText += `╰──────────────────●●►\n\n_💡 Reply with number to select._`;
 
