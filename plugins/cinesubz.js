@@ -8,7 +8,7 @@ cmd({
     alias: ["cs", "movie"],
     react: "🎬",
     desc: "Search and download movies from CineSubz.",
-    category: "download",
+    category: "movie",
     filename: __filename,
 }, async (bot, mek, m, { from, q, reply, prefix, userSettings }) => {
 
